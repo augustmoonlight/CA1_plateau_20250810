@@ -1,0 +1,5 @@
+// LOAD GUI.
+{
+	load_file("nrngui.hoc")
+}
+

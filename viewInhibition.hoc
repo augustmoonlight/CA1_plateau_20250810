@@ -1,0 +1,68 @@
+// Visualise results.
+/*
+objref synPlotAll
+synPlotAll = new Shape()
+for mm=1,totalVlnAtAdded{
+	synPlotAll.point_mark(e2sVlnAt[mm-1],4,"O",6)
+}
+for mm=1,totalNpyAtAdded{
+	synPlotAll.point_mark(e2sNpyAt[mm-1],3,"O",6)
+}
+for mm=1,totalVlsAtAdded{
+	synPlotAll.point_mark(e2sVlsAt[mm-1],2,"O",6)
+}
+for mm=1,totalSstAtAdded{
+	synPlotAll.point_mark(e2sSstAt[mm-1],5,"O",6)
+}
+*/
+
+objref sstPlot,vgatPlot,npyPlot,pvPlot,vgatLessSstPlot,vgatLessNpyPlot
+sstPlot = new Shape()
+vgatPlot = new Shape()
+npyPlot = new Shape()
+pvPlot = new Shape()
+vgatLessSstPlot = new Shape()
+vgatLessNpyPlot = new Shape()
+for mm=1,totVgatAt{
+	if(synVgatAt[mm-1].sst==1){
+		sstPlot.point_mark(synVgatAt[mm-1],3,"O",6)
+	}
+	if(synVgatAt[mm-1].vgat==1){
+		vgatPlot.point_mark(synVgatAt[mm-1],4,"O",6)
+	}
+	if(synVgatAt[mm-1].npy==1){
+		npyPlot.point_mark(synVgatAt[mm-1],5,"O",6)
+	}
+	if(synVgatAt[mm-1].pv==1){
+		pvPlot.point_mark(synVgatAt[mm-1],6,"O",6)
+	}
+
+	// add to vgat less Sst plot 
+	synVgatAt[mm-1].get_loc(){
+		curSec = new SectionRef()
+		if(sectionRefInList(curSec,tuftList)){
+			if(synVgatAt[mm-1].vgat==1){
+				if(synVgatAt[mm-1].sst==0){
+					vgatLessSstPlot.point_mark(synVgatAt[mm-1],5,"O",6)
+				}
+			}
+		}
+		
+		if(sectionRefInList(curSec,ca3List)){
+			if(synVgatAt[mm-1].vgat==1){
+				if(synVgatAt[mm-1].npy==0){
+					vgatLessNpyPlot.point_mark(synVgatAt[mm-1],4,"O",6)
+				}
+			}
+		}
+	}
+	pop_section()
+	
+}
+sstPlot.label("SST")
+vgatPlot.label("VGAT")
+npyPlot.label("NPY")
+pvPlot.label("PV")
+vgatLessNpyPlot.label("VGAT less NPY")
+vgatLessSstPlot.label("VGAT less SST")
+//vgatPlot.label("Vgat inputs")

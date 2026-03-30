@@ -1,0 +1,162 @@
+// 071615: Nelson suggested that I run a simulation looking at the effect of
+// proximal vs distal inhibition (see emails around this time).  This is 
+// implemented here.
+
+// Set parameters that may be varied during simulations.
+tstop = 300
+synWeight =  0.00018
+excStart = 125
+
+// Set parameter that corresponds to whether doing proximal or distal inhibition.
+doProx = 0
+
+nExcUseTuft = 0
+nExcUseCa3 = 0
+nInhFf = 72
+nInhFb = 0
+nInhCa3 = 0
+
+// Load scripts.
+load_file("plotVoltsNpy.hoc")
+load_file("excInhPrep.hoc")
+
+// Set indices of dendrites that will be analysed and recorded from.
+dendInd1 = 178//106
+dendInd2 = 179//107
+objref stimDend1,stimDend2
+Cell[0].dend[dendInd1] { stimDend1 = new SectionRef() }
+Cell[0].dend[dendInd2] { stimDend2 = new SectionRef() }
+
+// Turn off CVODE; need same temporal axes for summation across different
+// simulations for linear sum.
+// Try starting with variable time step
+
+cvode.active(0)
+execute("using_cvode_=0")
+
+// Insert Na channels.
+	newGbarSr = 0.03// enough to send a stable Na spike back into the tuft
+	newGbarSlm = newGbarSr 
+	{
+		initChannels()
+		forsec tuftList {
+			gbar_nax = newGbarSlm
+		}
+		forsec tuftList {
+			gbar_nax = newGbarSr
+		}
+		soma.sec {
+			gbar_nax = gnaSoma
+		}
+	}
+	
+// Turn off excitation and inhibition.
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+
+
+// Add in excitatory synapses to branch 1.
+	theSeg = 0
+	stimDend1.sec {for(x,0){theSeg+=1}}
+	nExcBr1 = theSeg 
+	theSeg = 0
+	objref nsAmpaBr1[nExcBr1],ncAmpaBr1[nExcBr1],synAmpaBr1[nExcBr1]
+	objref nsNmdaBr1[nExcBr1],ncNmdaBr1[nExcBr1],synNmdaBr1[nExcBr1]
+	stimDend1.sec {
+		for(x,0){
+			synAmpaBr1[theSeg] = new excSyn(x)
+			synAmpaBr1[theSeg].xEff = x_eff(x)
+			nsAmpaBr1[theSeg] = new NetStim(x)
+			ncAmpaBr1[theSeg] = new NetCon(nsAmpaBr1[theSeg],synAmpaBr1[theSeg])
+	
+			synNmdaBr1[theSeg] = new Exp2SynNmda(x)
+			nsNmdaBr1[theSeg] = new NetStim(x)
+			ncNmdaBr1[theSeg] = new NetCon(nsNmdaBr1[theSeg],synNmdaBr1[theSeg])
+			theSeg+=1
+		}
+	}
+	for ii=1,nExcBr1 {
+	
+		synAmpaBr1[ii-1].tau1= 0.2  // Jarsky et al., 2005
+		synAmpaBr1[ii-1].tau2 = 2 // Jarsky et al., 2005
+		synAmpaBr1[ii-1].e = 0
+		synAmpaBr1[ii-1].isOn=1
+		
+		
+		nsAmpaBr1[ii-1].interval = 0
+		nsAmpaBr1[ii-1].number = 1
+		nsAmpaBr1[ii-1].start = excStart
+		nsAmpaBr1[ii-1].noise = 0
+		ncAmpaBr1[ii-1].weight = synWeight // 0.18 nS; from Jarsky et al 2005
+		ncAmpaBr1[ii-1].delay = 0
+		
+		synNmdaBr1[ii-1].tau1= 5  
+		synNmdaBr1[ii-1].tau2 = 100 
+		synNmdaBr1[ii-1].e = 0
+		synNmdaBr1[ii-1].isOn=1
+		
+		
+		nsNmdaBr1[ii-1].interval = 0
+		nsNmdaBr1[ii-1].number = 1
+		nsNmdaBr1[ii-1].start = excStart
+		nsNmdaBr1[ii-1].noise = 0
+		ncNmdaBr1[ii-1].weight = synWeight
+		ncNmdaBr1[ii-1].delay = 0
+	
+	
+	}
+	
+// Add in inbibitory synapses to branch 1.
+	nInhBr1 = 5
+	objref synInh[nInhBr1],nsInh[nInhBr1],ncInh[nInhBr1]
+	
+	if(doProx){
+		xLoc = 0.1
+	}else{
+		xLoc = 0.9
+	}
+	
+	for ii=1,nInhBr1 {
+		stimDend1.sec {
+			synInh[ii-1] = new inhSyn(xLoc)
+			nsInh[ii-1] = new NetStim(xLoc)
+			ncInh[ii-1] = new NetCon(nsInh[ii-1],synInh[ii-1])
+		}
+			
+		synInh[ii-1].isOn = 1
+
+		
+		synInh[ii-1].tau1= sstTau1 
+		synInh[ii-1].tau2 = sstTau2
+		synInh[ii-1].e = inhRev
+		
+		
+		nsInh[ii-1].interval = 0
+		nsInh[ii-1].number = 1
+		nsInh[ii-1].start = excStart+1000000
+		nsInh[ii-1].noise = 0
+		ncInh[ii-1].weight = sstWeight
+		ncInh[ii-1].delay = 0
+	}
+
+	
+// Simulation 1: activate branch 1 only.
+	for ii=1,nExcBr1 { 
+		synAmpaBr1[ii-1].isOn=1
+		synNmdaBr1[ii-1].isOn=1
+	}
+
+// Graph results.
+	objref fooGraph
+	fooGraph = new Graph()
+	fooGraph.addvar("stimDend1.sec.v(0.9)",3,1)
+	fooGraph.addvar("stimDend1.sec.v(0.1)",4,1)
+	fooGraph.size(0,tstop,-70,0)
+	fooGraph.label("This is it")
+	graphList[0].append(fooGraph)
+	
+// Run.
+
+	run()
+	
+	

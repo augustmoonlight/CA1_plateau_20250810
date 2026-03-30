@@ -1,0 +1,18 @@
+// This does an unpaired PP stimulus only.
+
+// Create graph.
+objref scEoGr
+strdef lab1,lab2
+lab1 = "SC stim"
+lab2 = "Exc"
+toRem = addTracesToGraph(scEoGr,lab1,lab2)
+
+// Prep synapses.
+excInhPrep(0,nExcUseCa3,0,0,0)
+
+// Run
+run()
+
+// Prep for next run.
+graphList[0].remove(toRem-1)
+

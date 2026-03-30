@@ -1,0 +1,123 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+// Mark Cembrowski and Erik Bloss
+// Janelia Research Campus
+// Jan 11, 2015
+//
+// The following scripts are designed to simulate inhibition onto a model CA1
+// pyramidal cell, with the spatial distribution of inputs reflecting 
+// subcellular, cell-type-specific distributions of inhibition as determined
+// by array tomography.
+//
+////////////////////////////////////////////////////////////////////////////////
+
+// LOAD GUI.
+{
+	load_file("nrngui.hoc")
+}
+
+// LOAD MORPHOLOGY.
+{
+	cellId = 1 // choose to cell to simulate; 1 or 2.
+	load_file("loadMorph.hoc")
+	load_file("resetNSeg.hoc")
+}
+
+// ADJUST MORPHOLOGICAL AND ANNOTATION.
+// 1: PROOFREAD.
+// 2: CREATE SECTION LISTS THAT ASSIGN SECTIONS TO VARIOUS GROSS MORPHOLOGICAL
+//    COMPARTMENTS (e.g., primary dendrite, tuft, basal) 
+// 3:  ADJUST HOW NEURON RECOGNIZES VARIOUS SECTIONS
+{
+	load_file("proofreadMorph.hoc") // PROOFREAD MORPHOLOGY.
+	load_file("idMorph.hoc")
+	load_file("processMorph.hoc")
+}
+
+// ONE-OFF SIMULATION: GET LENGTHS AND SURFACE AREAS OF DIFFERNET
+// DOMAINS FOR BLOSS.  SEE EMAIL 071315
+{
+	load_file("morphSummary.hoc")
+}
+
+// IMPLEMENT INTRINSIC CHANNELS.
+{
+	load_file("addChannels.hoc")
+}
+
+// ADJUST NUMERICAL ASPECTS OF SIMULATION AND DISPLAY.
+// THE FLAG doMovie ALLOWS GRAPHS TO BE RECORDED, IF DESIRED.
+// THIS TAKES A FIXED TIME STEP AND DISTILLS GRAPHS FOR A WINDOW OF TIME.
+{
+	load_file("initializationAndRun.hoc")
+	load_file("displayPanels.hoc")
+	
+	doMovie=0
+	if(doMovie){
+		load_file("step.hoc")
+	}
+} 
+
+// PLACE ALL INHIBITORY SYNAPSES (ie, all VGAT+ SYNAPSES) AND THEN ASSIGN THEM
+// AS OTHER GENOTYPES (SST, PV) AS DETERMINED BY ARRAY TOMOGRAPHY 
+// DISTRIBUTIONS.
+{
+	load_file("addVgatInhibition.hoc")
+	load_file("synHelperScripts.hoc") // scripts retrieving synapse information
+	load_file("flagVgatInhibition.hoc")
+	load_file("inhibitionBiophysics.hoc") // assign vgat properties
+	load_file("activateInhibition.hoc") // script toggling active inhibition
+
+	//load_file("checkConsistency.hoc") // deprecated; replaced by modelExpCheck below
+
+	seedGenotypes() // add in inhibition
+	load_file("viewInhibition.hoc")
+}				
+
+// PLACE ALL EXCITATORY SYNAPSES.
+{
+	load_file("addExcitation.hoc")
+	load_file("activateExcitation.hoc") // script toggling active excitation
+	load_file("viewExcitation.hoc")
+}
+
+// DO A CHECK FOR CONSISTENTCY IN SYNAPTIC DISTRIBUTIONS BETWEEN MODEL AND 
+// EXPERIMENT. 
+strdef genotypeToUse,domainToSurvey
+{
+
+	doCheck=0
+	if(doCheck){
+		genotypeToUse = "vgat" //  TYPE OF SYNAPSE, ONE OF"exc","vgat","sst","npy"
+		domainToSurvey = "tuft" // DOMAIN TO CONSIDER, ONE OF "basal","prim","obl","tuft"
+		partitionsToUse = 3 // NUMBER OF PARTITIONS.  AT DATA WAS EITHER = 1 OR = 3.
+		
+		load_file("modelExpCheck.hoc")
+		modelExpCheck(genotypeToUse,domainToSurvey,partitionsToUse)
+	}
+}
+
+
+
+// DO MAIN SIMULATION.
+{	
+//	load_file("unpairedVsPairedStim.hoc")
+//	load_file("stimWithNpy.hoc")
+//	load_file("npySingleBranch.hoc")
+//	load_file("npyStimIndividualBranches.hoc")
+//	load_file("sstStimIndividualBranches.hoc")
+//	load_file("sstStimAllBranches.hoc")
+//	load_file("npyStimAllBranches.hoc")
+}
+
+// DO MAIN, REPEATED SIMULATIONS.
+{
+	load_file("iterateSims.hoc")
+}
+
+// DO A COOPERATIVITY ONE-OFF SIMULATION FOR ERIK.
+{
+//	load_file("sstStimIndividualBranches.hoc")
+//	load_file("npyStimIndividualBranches.hoc")
+}
+

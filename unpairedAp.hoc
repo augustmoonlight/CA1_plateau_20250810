@@ -1,0 +1,24 @@
+// Initiate a bAp.
+
+objref somaCcAp
+soma.sec {
+	somaCcAp = new IClamp(0.5)
+	somaCcAp.dur = 2
+	somaCcAp.amp = 2
+	somaCcAp.del = tStart
+}
+
+strdef lab1
+lab1 = "Unpaired AP"
+objref apGr
+toRem = addTracesToGraph(apGr,lab1)
+
+// Prep synapses.
+excInhPrep(0,0,0,0,0)
+
+// Run
+run()
+
+// Prep for next runs.
+graphList[0].remove(toRem-1)
+somaCcAp.del = 10000000

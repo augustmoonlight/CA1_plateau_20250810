@@ -1,0 +1,72 @@
+// This script is designed to simulate an EC3-like input to CA1 tuft.
+
+// Set parameters.
+tstop = 40//300
+
+nExcUseTuft = 1000// 400
+nExcUseCa3 = 100//500*2
+nInhFf = 72// 72 is max to compare SST+ vs SST-
+nInhFb = 0
+nInhCa3 = 0//1000000
+
+load_file("plotVoltsPrep.hoc")
+load_file("excInhPrep.hoc")
+
+// Define timing.
+tStart = 5// 100
+tDel = 20 // delay between PP and SC input; tDel > 0 means PP leads SC
+
+
+// INSERT SOME CA ALREADY.
+/*
+cvode.active(0)
+execute("using_cvode_=0")
+caBar = 0.005
+soma.sec { distance() }
+forsec primList{	
+	if(distance(0.5)>150){
+		insert calH
+		gcalbar_calH = caBar
+		theMTau_calH = 2
+		theHTau_calH = 10
+		vhalfm_calH = -20//-10
+		vhalfh_calH = -40//-10
+		km_calH = 5
+	}
+}
+forsec obliqueList{	
+	if(distance(0.5)>150){
+		insert calH
+		gcalbar_calH = caBar
+		theMTau_calH = 2
+		theHTau_calH = 10
+		vhalfm_calH = -20//-10
+		vhalfh_calH = -40//-10
+		km_calH = 5
+	}
+}
+*/
+
+// Do various simulations.
+	// Basic simulations.
+		//load_file("unpairedAp.hoc") // AP initiated at soma
+		//load_file("unpairedStep.hoc") // step at soma
+	
+	// Unpaired.
+	//	load_file("unpairedPp.hoc") // PP stimulus only
+		//load_file("unpairedPpExcOnly.hoc") // PP stimulus only; no inhibition
+	//	load_file("unpairedSc.hoc") // SC stimulus only
+		//load_file("unpairedScExcOnly.hoc") // SC stimulus only; no inhibition
+
+	// Higher order comparisons.
+	//	load_file("pairedPpSc.hoc") // PP + SC stimulation
+	//	load_file("pairedPpScExcOnly.hoc") // PP + SC stimulation; no inhibition
+	//	load_file("pairedPpScFb.hoc") // PP + SC + feedback simulation
+	//	load_file("pairedPpFb.hoc") // PP + feedback simulation; no Schaffer
+	
+	// Inverted comaparisons.
+		load_file("pairedPpScInv.hoc") // inverted PP + SC stimulation
+		//load_file("pairedPpScFbInv.hoc") // inverted PP + SC + feedback simulation
+		//load_file("pairedPpFbInv.hoc") // inverted PP + feedback simulation; no Schaffer
+	
+	

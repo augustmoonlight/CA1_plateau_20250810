@@ -1,0 +1,8 @@
+
+// view excitatory synapses
+objref excPlot
+excPlot = new Shape()
+for mm=1,nExc{
+	excPlot.point_mark(synAmpa[mm-1],2,"O",6)
+}
+excPlot.label("Excitation")

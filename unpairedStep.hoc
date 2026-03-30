@@ -1,0 +1,24 @@
+// Initiate a bAP.
+
+objref somaCcStep
+soma.sec {
+	somaCcStep = new IClamp(0.5)
+	somaCcStep.dur = 100
+	somaCcStep.amp = 0.3
+	somaCcStep.del = tStart
+}
+
+objref stepGr
+strdef lab1
+lab1 = "Unpaired current step"
+toRem = addTracesToGraph(stepGr,lab1)
+
+// Prep synapses.
+excInhPrep(0,0,0,0,0)
+
+// Run
+run()
+
+// Prep for next run.
+graphList[0].remove(toRem-1)
+somaCcStep.del = 50000000

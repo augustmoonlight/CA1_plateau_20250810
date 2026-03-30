@@ -1,0 +1,98 @@
+cvode.active(0)
+execute("using_cvode_=0")
+
+start_recording = 90
+stop_recording = 120
+
+// initialise to steady state.  This is done because the voltage traces do
+// not update properly when the starting time (associated with the first
+// argument in the size() call) is far beyond the start time, in turn
+// not saving the corresponding voltage traces.
+
+	INITDUR = 20 // # ms to reach steady state
+	
+	proc init() { local temp
+	  finitialize(v_init)
+	  t = -2*INITDUR // jump to a time "before" 0
+	  temp = cvode.active()
+	  if (temp != 0) { // if cvode is on, turn it off
+	    cvode.active(0)
+	    dt = 0.025
+	  }
+	  while (t < -INITDUR) {
+	    fadvance()
+	  }
+	  if (temp != 0) { cvode.active(1) } // turn cvode back on if necessary
+	  t = 0
+	  if (cvode.active()) {
+	    cvode.re_init()
+	  } else {
+	    fcurrent()
+	  }
+	  frecord_init()
+	}
+
+stillno=0
+objref mySpacePlot,mySpaceBox
+mySpaceBox = new HBox()
+mySpaceBox.intercept(1)
+	mySpacePlot = new PlotShape()
+	mySpacePlot.exec_menu("Show Diam")
+	mySpacePlot.exec_menu("Shape Plot")
+	mySpacePlot.scale(-70,-30)
+mySpaceBox.intercept(0)
+mySpaceBox.map("Voltages",0,0,800,1200)
+
+// map a voltage trace, too
+objref recVoltBox,recVoltGr
+recVoltBox = new HBox()
+recVoltBox.intercept(1)
+recVoltGr = new Graph()
+recVoltGr.size(0,40,-70,-30)
+// did dends 176, 162, 160 (in that order) for SST simulations
+recVoltGr.addvar("Cell[0].dend[72].v(0.5)",2,1)
+recVoltGr.addvar("Cell[0].dend[137].v(0.5)",3,1)
+recVoltGr.addvar("Cell[0].dend[85].v(0.5)",4,1)
+recVoltGr.addvar("Cell[0].dend[101].v(0.5)",5,1)
+recVoltGr.addvar("Cell[0].dend[149].v(0.5)",6,1)
+//recVoltGr.size(start_recording,stop_recording,-70,-30)
+graphList[0].append(recVoltGr)
+recVoltBox.intercept(0)
+recVoltBox.map("Voltages",0,0,300,300)
+
+
+strdef epsfilename
+func printspaceplot(){
+    sprint(epsfilename,"SpaceplotsEPS/still_%08d.eps",stillno)
+    mySpacePlot.printfile(epsfilename)  
+    
+    sprint(epsfilename,"VoltplotsEPS/still_%08d.eps",stillno)
+    recVoltGr.printfile(epsfilename)
+    
+    stillno=stillno+1
+    
+    return 1
+}
+
+sampleInt = 0.2 // 0.1 // sample rate to take pictures
+
+// Alternative step function.
+proc step() {local i
+   if (using_cvode_) {
+      advance()
+   }else for i=1,nstep_steprun {
+      advance()
+   }
+   Plot()
+
+   // Added code is below
+   if(t >= start_recording && t < stop_recording){
+   	if(abs(int(t/sampleInt+0.000001)-t/sampleInt)<0.001){
+   		// NOTE: 022815: added +0.000001 to if condition above because
+   		// otherwise a weird roundoff error would occur wherein
+   		// abs(int(t/sampleInt)-t/sampleInt) would be = 1, and thus
+   		// the loop would cease to be entered.
+   		printspaceplot()
+   	}
+   }
+}
