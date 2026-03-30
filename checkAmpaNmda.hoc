@@ -1,0 +1,104 @@
+// This experiment calibrates AMPA vs. NMDA component of synapses by considering
+// traces relative to Bittner et al., 2012.
+//
+// The punchline of this simulation is that the NMDA component is almost
+// nonexistent (~10% of the AMPA component) for SC input, whereas there is
+// almost a 1:1 relationship between AMPA and NMDA for tuft inputs.
+
+// Set parameters.
+	tstop = 500
+
+// Assign dendrite to simulate recording.
+	objref theDend
+	Cell[0].dend[87] { theDend = new SectionRef() }
+
+// Display currents and run.
+	objref curPlotSc,curPlotEc3,curBox
+	curBox = new HBox()
+	curBox.intercept(1){
+		curPlotSc = new Graph()
+		curPlotSc.addvar("theDend.sec.v(0.5)",2,1)
+		curPlotSc.size(50,300,-70,-60)
+		curPlotSc.exec_menu("Keep Lines")
+		curPlotSc.label("SC input, w/ vs w/o NMDAR")
+		
+		curPlotEc3 = new Graph()
+		curPlotEc3.addvar("theDend.sec.v(0.5)",2,1)
+		curPlotEc3.size(50,300,-70,-60)
+		curPlotEc3.exec_menu("Keep Lines")
+		curPlotEc3.label("Tuft input, w/ vs w/o NMDAR")
+	}
+	curBox.intercept(0)
+	curBox.map("Synaptic currents",0,0,600,300)
+	
+// Prep simulation.
+	toRemA = graphList[0].append(curPlotSc)
+	initChannels()
+	for ii=0,nExc-1{
+		synNmda[ii].extMgConc = 0.1 // match that of Bittner et al.
+	}
+	// Shut off all synapses.
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+
+// Do CA3 input.
+	
+	// Next, activate CA3 SC input.
+	objref scList
+	scList = new SectionList()
+	forsec obliqueList {scList.append()}
+	forsec primList {scList.append()}
+
+	nCa3 = 40
+	objref theScSyns
+	theScSyns = new Vector()
+	theScSyns = activateExcitation(scList,nCa3)
+
+// Run CA3 in control conditions.
+	for ii=0,nExc-1{
+		ncAmpa[ii].weight = 0.00018*1
+		ncNmda[ii].weight = 0.00018*(1/10)
+	}
+
+	run()
+	
+// Run CA3 in blocked NMDAR condition. 
+	for ii=0,nExc-1{
+		ncAmpa[ii].weight = 0.00018*1
+		ncNmda[ii].weight = 0.00018*0
+	}
+
+	run()
+	
+// Prep for EC3 run.
+	graphList[0].remove(toRemA-1)
+	toRemN = graphList[0].append(curPlotEc3)
+	
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+
+// Do EC3 input.
+	// First, shut off all synapses.
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+
+	// Next, activate tuft synapses.
+	nTuft = 40
+	objref theTuftSyns
+	theTuftSyns = new Vector()
+	theTuftSyns = activateExcitation(tuftList,nTuft)
+
+// Run EC3 in control simulations.
+	for ii=0,nExc-1{
+		ncAmpa[ii].weight = 0.00018*1
+		ncNmda[ii].weight = 0.00018*(1/2)
+	}
+
+	run()
+	
+// Run EC3 in blocked NMDAR conditions.
+for ii=0,nExc-1{
+	ncAmpa[ii].weight = 0.00018*1
+	ncNmda[ii].weight = 0.00018*0
+}
+run()

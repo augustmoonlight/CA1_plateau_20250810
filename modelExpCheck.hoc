@@ -1,0 +1,88 @@
+// This script checks the following data for consistency between model
+// and experiment for a given genotype.
+
+
+// Load files that check in specific domains.  The type of analysis is
+// different for each domain, necessitating a different script for each.
+load_file("modelExpCheckTuft.hoc")
+load_file("modelExpCheckBasal.hoc")
+load_file("modelExpCheckOblique.hoc")
+load_file("modelExpCheckPrim.hoc")
+load_file("modelExpCheckExc.hoc")
+
+strdef genotype,domain
+proc modelExpCheck(){local numSplit,ii,numPart localobj theSecList,theCurSec,useBr
+	genotype = $s1
+	domain = $s2
+	
+	if(numarg()>2.1){
+		numPart = $3
+	}else{
+		numPart = 1
+	}
+	
+	theSecList = new SectionList()
+	
+	useBr = new Vector()
+	if(abs(strcmp(domain,"basal"))<0.1){
+		forsec basalList{theSecList.append()}
+	}else{
+		if(abs(strcmp(domain,"obl"))<0.1){
+			forsec obliqueList{theSecList.append()}
+		}else{
+			if(abs(strcmp(domain,"tuft"))<0.1){
+				forsec tuftList{theSecList.append()}
+			}else{
+				if(abs(strcmp(domain,"prim"))<0.1){
+					forsec primList{theSecList.append()}
+				}else{
+					print "Supplied an unrecognized string."
+					stop
+				}
+			}
+		}
+	}
+
+	if(abs(strcmp(genotype,"exc"))<0.1){
+		// Do a specialised routine that checks densities across gross
+		// domains, rather than more finely within given domains.
+		
+	
+	}else{
+		
+		for ii=1,numEffBr{
+			forsec brEff[ii-1] {
+				// I realise that this overwrites aCurSec many
+				// times for a given realisation.  However, the goal
+				// is not to visit every Section in brEff[ii-1], but
+				// just to grab one Section from each list so that
+				// it can be seen whether it is in the supplied list.
+				
+				theCurSec = new SectionRef()
+			}
+			if(sectionRefInList(theCurSec,theSecList)){
+				useBr.append(ii-1)
+			}
+		}
+		
+		if(abs(strcmp(domain,"basal"))<0.1){
+			modelExpBasal(useBr,numPart,genotype)
+		}
+		if(abs(strcmp(domain,"obl"))<0.1){
+			modelExpObl(useBr,numPart,genotype)	
+		}
+		if(abs(strcmp(domain,"tuft"))<0.1){
+			modelExpTuft(useBr,numPart,genotype)
+		}
+		if(abs(strcmp(domain,"prim"))<0.1){
+			// Do not use effective branches here, as the effective
+			// branches sometimes incorporate a small bit of oblique, which
+			// is not desired for this quantification.
+			modelExpPrim(theSecList,numPart,genotype)
+		}
+	}
+}
+
+
+		
+			

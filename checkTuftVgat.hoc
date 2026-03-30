@@ -1,0 +1,285 @@
+// This script checks for consistency between AT data and simulation data in the 
+// tuft; namely, VGAT inputs.  Do only for branches that have an 
+// effective length greater than some threhsold.
+Lthres = 30 // in um, the smallest branches to analyse.
+
+// 2. Perform a check based upon terminal vs. nonterminal branches, not broken into
+// thirds.
+	numParTuft = 0
+	numLeafTuft = 0
+	
+	// determine number of effective branches to examine
+	for nn=1,numEffBr {
+	
+		hasIncremented = 0
+		forsec brEff[nn-1] {
+			if(L_eff>Lthres){
+				if(isTuft_id){
+					if(isTerm_id){
+						if(hasIncremented<0.1){
+							numLeafTuft+=1
+							hasIncremented=1
+						}
+					}else{
+						if(hasIncremented<0.1){
+							numParTuft+=1
+							hasIncremented=1
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// examine effective branches
+	objref vgatTuftParBr,vgatTuftLeafBr
+	vgatTuftParBr = new Vector(numParTuft)
+	vgatTuftLeafBr = new Vector(numLeafTuft)
+	curTerm = -1
+	curPar = -1
+	
+	for nn=1,numEffBr {
+		
+		hasIncremented = 0
+		
+		forsec brEff[nn-1] {
+		
+			if(L_eff>Lthres){
+				if(isTuft_id){
+					if(isTerm_id){
+						if(hasIncremented < 0.1){
+							curTerm+=1
+							hasIncremented = 1
+						}
+					}else{						
+						if(hasIncremented < 0.1){
+							curPar+=1
+							hasIncremented = 1
+						}
+					}
+				}
+			}
+						
+			if(L_eff>Lthres){
+				if(isTuft_id){
+					if(isTerm_id){
+						for (x,0) {
+							vgatTuftLeafBr.x[curTerm] = vgatTuftLeafBr.x[curTerm] + vgatAt_syns(x)
+						}
+					}else{
+						for (x,0) {
+							vgatTuftParBr.x[curPar] = vgatTuftParBr.x[curPar] + vgatAt_syns(x)
+						}
+					}
+				}
+			}
+		}
+	}
+	
+
+
+	
+	print "Number of parent branch synapses: ", vgatTuftParBr.mean(),"+/-",vgatTuftParBr.stdev()
+	print "Number of leaf branch synapses: ",vgatTuftLeafBr.mean(),"+/-",vgatTuftLeafBr.stdev()
+	
+// 3.  	Perform a check based upon leaf vs. branches, broken into thirds.
+// 	Extract data as if it were AT data and plot; to do this, need to keep
+//	track of both length and SA for each division of each neurite.
+
+	objref vgatTuftParCutVgatTuft[dauDivSst],vgatTuftLeafCutVgatTuft[dauDivSst]
+	for mm=1,dauDivSst {
+		vgatTuftParCutVgatTuft[mm-1] = new Vector(numParTuft)
+		vgatTuftLeafCutVgatTuft[mm-1] = new Vector(numLeafTuft)
+	}
+	
+	objref lParCutVgatTuft[dauDivSst],saParCutVgatTuft[dauDivSst],lLeafCutVgatTuft[dauDivSst],saLeafCutVgatTuft[dauDivSst]
+	for mm=1,dauDivSst {
+		lParCutVgatTuft[mm-1] = new Vector(numParTuft)
+		saParCutVgatTuft[mm-1] = new Vector(numParTuft)
+		lLeafCutVgatTuft[mm-1] = new Vector(numLeafTuft)
+		saLeafCutVgatTuft[mm-1] = new Vector(numLeafTuft)
+	}
+	
+	
+	curTerm = -1
+	curPar = -1
+//	forsec tuftList {
+//		if(isTerm_id){
+	for nn=1,numEffBr {
+		
+		hasIncremented = 0
+
+		forsec brEff[nn-1] {
+		
+			if(L_eff>Lthres){
+				if(isTuft_id){
+					if(isTerm_id){
+
+
+						if(hasIncremented < 0.1){
+							curTerm+=1
+							hasIncremented = 1
+						}
+					}else{						
+						if(hasIncremented < 0.1){
+							curPar+=1
+							hasIncremented = 1
+						}
+					}
+				}
+			}
+			
+			if(L_eff>Lthres){
+				if(isTuft_id){
+					if(isTerm_id){
+						for(x,0){
+							// Increment number of synapses.
+							curVal = vgatTuftLeafCutVgatTuft[int(x_eff(x)*dauDivSst)].x[curTerm]
+							curVal = curVal + vgatAt_syns(x)
+							vgatTuftLeafCutVgatTuft[int(x_eff(x)*dauDivSst)].x[curTerm] = curVal
+
+							
+							// Increment length.
+							curVal = lLeafCutVgatTuft[int(x_eff(x)*dauDivSst)].x[curTerm]
+							curVal = curVal + L/nseg
+							lLeafCutVgatTuft[int(x_eff(x)*dauDivSst)].x[curTerm] = curVal
+							
+							// Increment surface area.
+							curVal = saLeafCutVgatTuft[int(x_eff(x)*dauDivSst)].x[curTerm]
+							curVal = curVal + area(x)
+							saLeafCutVgatTuft[int(x_eff(x)*dauDivSst)].x[curTerm] = curVal
+						}
+
+					}else{	
+						for(x,0){
+							// Increment number of synapses.
+							curVal = vgatTuftParCutVgatTuft[int(x_eff(x)*dauDivSst)].x[curPar]
+							curVal = curVal + vgatAt_syns(x)
+							vgatTuftParCutVgatTuft[int(x_eff(x)*dauDivSst)].x[curPar] = curVal
+							
+							// Increment length.
+							curVal = lParCutVgatTuft[int(x_eff(x)*dauDivSst)].x[curPar]
+							curVal = curVal + L/nseg
+							lParCutVgatTuft[int(x_eff(x)*dauDivSst)].x[curPar] = curVal
+							
+							// Increment surface area.
+							curVal = saParCutVgatTuft[int(x_eff(x)*dauDivSst)].x[curPar]
+							curVal = curVal + area(x)
+							saParCutVgatTuft[int(x_eff(x)*dauDivSst)].x[curPar] = curVal
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	
+	
+	// Normalise output for plotting by length and surface area.
+	// Note this cleans up.  Very short sections may have only one section,
+	// and thus leave length and surface area entries equal to zero for
+	// some sections.  This, in turn, leads to NA values when normalising;
+	// however, these short stretches of dendrites also have no inputs (=0/0)
+	// so at this point just set the length and surface area very high
+	// to avoid dividing by zero, which will return the proper result.
+	objref vgatTuftParCutVgatTuftL[dauDivSst],vgatTuftLeafCutVgatTuftL[dauDivSst]
+	objref vgatTuftParCutVgatTuftSa[dauDivSst],vgatTuftLeafCutVgatTuftSa[dauDivSst]
+	
+	for mm=1,dauDivSst {
+		vgatTuftParCutVgatTuftL[mm-1] = new Vector(numParTuft)
+		vgatTuftLeafCutVgatTuftL[mm-1] = new Vector(numLeafTuft)
+		vgatTuftParCutVgatTuftSa[mm-1] = new Vector(numParTuft)
+		vgatTuftLeafCutVgatTuftSa[mm-1] = new Vector(numLeafTuft)
+		
+		vgatTuftParCutVgatTuftL[mm-1].copy(vgatTuftParCutVgatTuft[mm-1])
+		vgatTuftLeafCutVgatTuftL[mm-1].copy(vgatTuftLeafCutVgatTuft[mm-1])
+		vgatTuftParCutVgatTuftSa[mm-1].copy(vgatTuftParCutVgatTuft[mm-1])
+		vgatTuftLeafCutVgatTuftSa[mm-1].copy(vgatTuftLeafCutVgatTuft[mm-1])
+		
+		for nn=1,vgatTuftParCutVgatTuftSa[mm-1].size(){
+			if(vgatTuftParCutVgatTuftSa[mm-1].x[nn-1]>0.1){
+				// Having a synapse implies having a length and SA.
+				vgatTuftParCutVgatTuftL[mm-1].x[nn-1] = vgatTuftParCutVgatTuftL[mm-1].x[nn-1] / lParCutVgatTuft[mm-1].x[nn-1]
+				vgatTuftParCutVgatTuftSa[mm-1].x[nn-1] = vgatTuftParCutVgatTuftSa[mm-1].x[nn-1] / saParCutVgatTuft[mm-1].x[nn-1]
+			}else{
+				vgatTuftParCutVgatTuftL[mm-1].x[nn-1] = 0
+				vgatTuftParCutVgatTuftSa[mm-1].x[nn-1] = 0
+			}
+		}
+		
+		for nn=1,vgatTuftLeafCutVgatTuftSa[mm-1].size(){
+			if(vgatTuftLeafCutVgatTuftSa[mm-1].x[nn-1]>0.1){
+				// Having a synapse implies having a length and SA.
+				vgatTuftLeafCutVgatTuftL[mm-1].x[nn-1] = vgatTuftLeafCutVgatTuftL[mm-1].x[nn-1] / lLeafCutVgatTuft[mm-1].x[nn-1]
+				vgatTuftLeafCutVgatTuftSa[mm-1].x[nn-1] = vgatTuftLeafCutVgatTuftSa[mm-1].x[nn-1] / saLeafCutVgatTuft[mm-1].x[nn-1]
+			}else{
+				vgatTuftLeafCutVgatTuftL[mm-1].x[nn-1] = 0
+				vgatTuftLeafCutVgatTuftSa[mm-1].x[nn-1] = 0
+			}
+		}
+			
+	}
+	
+	
+	
+	// Define x axis for plotting.
+	objref xAxisParVgatTuft[dauDivSst],xAxisLeafVgatTuft[dauDivSst]
+	for mm=1,dauDivSst {
+		xAxisParVgatTuft[mm-1] = new Vector(numParTuft,(mm/dauDivSst))
+		xAxisLeafVgatTuft[mm-1] = new Vector(numLeafTuft,(mm/dauDivSst))
+	}
+	
+	// Plot.
+	objref lVgatTuftGr,saVgatTuftGr
+//	lVgatTuftGr = new Graph()
+//	for mm=1,dauDivSst {
+//		vgatTuftParCutVgatTuftL[mm-1].mark(lVgatTuftGr,xAxisParVgatTuft[mm-1],"O",6,2) // parent branches, divided in 3, normed by L
+//		vgatTuftLeafCutVgatTuftL[mm-1].mark(lVgatTuftGr,xAxisLeafVgatTuft[mm-1],"O",6,3) // leaf branches, divided in 3, normed by L
+//	}
+//	lVgatTuftGr.label(0,0,"VGAT length-normed synapses (syn/um); red = parent, blue = leaf")
+//	lVgatTuftGr.exec_menu("View = plot")
+	
+	saVgatTuftGr = new Graph()
+	for mm=1,dauDivSst {
+		vgatTuftParCutVgatTuftSa[mm-1].mark(saVgatTuftGr,xAxisParVgatTuft[mm-1],"O",6,2) // parent branches, divided in 3, normed by SA
+		vgatTuftLeafCutVgatTuftSa[mm-1].mark(saVgatTuftGr,xAxisLeafVgatTuft[mm-1],"O",6,3) // leaf branches, divided in 3, normed by SA
+	}
+	saVgatTuftGr.label(0,0,"VGAT SA-normed synapses (syn/um2); red = parent, blue = leaf")
+	saVgatTuftGr.exec_menu("View = plot")
+	
+	// Generate statistics and plot.
+	objref xAxisVgatTuft
+	xAxisVgatTuft = new Vector(dauDivSst)
+	for mm=1,dauDivSst { xAxisVgatTuft.x[mm-1] = (mm/dauDivSst) }
+	
+	objref vgatTuftParCutVgatTuftLMu,vgatTuftLeafCutVgatTuftLMu,vgatTuftParCutVgatTuftLErr,vgatTuftLeafCutVgatTuftLErr
+	objref vgatTuftParCutVgatTuftSaMu,vgatTuftLeafCutVgatTuftSaMu,vgatTuftParCutVgatTuftSaErr,vgatTuftLeafCutVgatTuftSaErr
+	
+	vgatTuftParCutVgatTuftLMu = new Vector(dauDivSst)
+	vgatTuftLeafCutVgatTuftLMu = new Vector(dauDivSst)
+	vgatTuftParCutVgatTuftLErr = new Vector(dauDivSst)
+	vgatTuftLeafCutVgatTuftLErr = new Vector(dauDivSst)
+	vgatTuftParCutVgatTuftSaMu = new Vector(dauDivSst)
+	vgatTuftLeafCutVgatTuftSaMu = new Vector(dauDivSst)
+	vgatTuftParCutVgatTuftSaErr = new Vector(dauDivSst)
+	vgatTuftLeafCutVgatTuftSaErr = new Vector(dauDivSst)
+	
+	for mm=1,dauDivSst {
+		vgatTuftParCutVgatTuftLMu.x[mm-1] = vgatTuftParCutVgatTuftL[mm-1].mean()
+		vgatTuftLeafCutVgatTuftLMu.x[mm-1] = vgatTuftLeafCutVgatTuftL[mm-1].mean()
+		vgatTuftParCutVgatTuftLErr.x[mm-1] = vgatTuftParCutVgatTuftL[mm-1].stdev()
+		vgatTuftLeafCutVgatTuftLErr.x[mm-1] = vgatTuftLeafCutVgatTuftL[mm-1].stdev()
+		vgatTuftParCutVgatTuftSaMu.x[mm-1] = vgatTuftParCutVgatTuftSa[mm-1].mean()
+		vgatTuftLeafCutVgatTuftSaMu.x[mm-1] = vgatTuftLeafCutVgatTuftSa[mm-1].mean()
+		vgatTuftParCutVgatTuftSaErr.x[mm-1] = vgatTuftParCutVgatTuftSa[mm-1].stdev()
+		vgatTuftLeafCutVgatTuftSaErr.x[mm-1] = vgatTuftLeafCutVgatTuftSa[mm-1].stdev()
+	}
+	
+//	vgatTuftParCutVgatTuftLMu.plot(lVgatTuftGr,xAxisVgatTuft,2,1)
+//	vgatTuftParCutVgatTuftLMu.ploterr(lVgatTuftGr,xAxisVgatTuft,vgatTuftParCutVgatTuftLErr,5,2,1)
+//	vgatTuftLeafCutVgatTuftLMu.plot(lVgatTuftGr,xAxisVgatTuft,3,1)
+//	vgatTuftLeafCutVgatTuftLMu.ploterr(lVgatTuftGr,xAxisVgatTuft,vgatTuftLeafCutVgatTuftLErr,5,3,1)
+	vgatTuftParCutVgatTuftSaMu.plot(saVgatTuftGr,xAxisVgatTuft,2,1)
+	vgatTuftParCutVgatTuftSaMu.ploterr(saVgatTuftGr,xAxisVgatTuft,vgatTuftParCutVgatTuftSaErr,5,2,1)
+	vgatTuftLeafCutVgatTuftSaMu.plot(saVgatTuftGr,xAxisVgatTuft,3,1)
+	vgatTuftLeafCutVgatTuftSaMu.ploterr(saVgatTuftGr,xAxisVgatTuft,vgatTuftLeafCutVgatTuftSaErr,5,3,1)

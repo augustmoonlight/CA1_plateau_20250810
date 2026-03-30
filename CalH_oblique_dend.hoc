@@ -1,0 +1,84 @@
+// This is the .hoc file for the population of L- and R- type Ca++ channel over CA1 pyramidal neuron. 
+// The file was named for previous trials but since kept for consistency in code.
+// The Ca++ conductance was constrained to meet: 
+// (1) Golding et al. 1999. Complex spike from distal dendritic current injection
+// (2) Takahashi, Magee. 2009. NMDA/Ca2+ plateau from simultaneous SC & PP inputs
+
+// Experimenting code
+// for complex spike induction: 0.13 nA at dend[86](0.5)
+cvode.active(0)
+execute("using_cvode_=0")
+caBar = 0.0006
+carBar = 0.00015 * 1.5
+soma.sec { distance() }
+
+soma.sec{
+    insert calH
+    gcalbar_calH = 0.005
+    insert car
+    gcabar_car = 0.003
+}
+
+forsec primList{
+    insert calH
+    for (x) {
+        xdist = distance(x)
+        if(xdist<100){gcalbar_calH = caBar * 0.1}
+        if(xdist>=100){gcalbar_calH = caBar * 0.5}
+    }
+    insert car
+    gcabar_car = carBar
+}
+
+forsec obliqueList{
+    insert calH
+    for (x) {
+        xdist = distance(x)
+        if(xdist<100){gcalbar_calH = caBar * 0.1}
+        if(xdist>=100){gcalbar_calH = caBar * 2.3}
+    }
+    insert car
+    gcabar_car = carBar
+}
+
+forsec tuftList{    
+    insert calH
+    gcalbar_calH = caBar
+    insert car
+    gcabar_car = carBar * 2
+}
+
+// Backup for the currently best result, fitting both constraints (1) and (2)
+// For replicating the results in the powerpoint file:
+// (1) set the current clamp to be at dend[86](0.5), amp = 0.18, delay = 150, dur = 1000; recording site at dend[86](0.5)
+// (2) set stimNum = 200, stim.start = 150 + math.floor(stim_term/40)*200, 
+//     generate the synapse list by random.seed(1122)
+//                                  sc_subthreshold_stim = random.sample(scSynList,5) 
+//                                  pp_subthreshold_stim = random.sample(ppSynList,3)
+//    synNumber = simul_stim[(synTerm%8)]
+//    nc = h.NetCon(stim_list[synTerm],h.synNmda[synNumber])
+//    if synTerm in range(0,80):
+//        nc.weight[0] = 0.00036
+//    if synTerm in range(80,200):
+//        nc.weight[0] = 0.00144
+//      and also recording at dend[86](0.5)
+
+// cvode.active(0)
+// execute("using_cvode_=0")
+// caBar = 0.0006
+// soma.sec { distance() }
+
+// soma.sec{
+//  insert calH
+//  gcalbar_calH = 0.005
+//  insert car
+//  gcabar_car = 0.003
+// }
+
+// forsec primList{
+//  insert calH
+//  if(distance(0.5)<50){gcalbar_calH = caBar * 0.1}
+//  if(distance(0.5)>=50){gcalbar_calH = caBar * 4.6}
+//  insert car
+//  gcabar_car = 0.0003
+// }

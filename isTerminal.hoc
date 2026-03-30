@@ -1,0 +1,60 @@
+// This helper function returns whether a given branch is terminal.
+
+// INPUT : a SectionRef instance; e.g.,
+//	objref foo
+//	somaA foo = new SectionRef()
+//	isTerminal(foo) // returns 0
+//
+// OUTPUT : returns 1 if a terminal branch (ie no children) or 0 (ie has 
+//	children)
+func isTerminal() {local nc,theOut
+	nc = $o1.nchild
+	if(nc>0.1){
+		theOut = 0
+	}else{
+		theOut = 1
+	}
+	return theOut
+}
+
+// This function adds synapses across a given branch.
+// INPUT:
+//	$1: the number of synapses to add.
+//	$o2: a SectionRef instance, to receive synapses
+// OUTPUT:
+//	The selected branch has synapses added.
+objref nsB[1],nc[1],ga[1]
+objref rand
+rand = new Random()
+
+proc addSynapses(){local synLoc
+	objref nsB[$1],nc[$1],ga[$1]
+	
+	// Add synapses to selected branch.
+	$o2.sec {
+		for mm=1,$1 {
+			// Determine location with which to place synapse.
+			synLoc = rand.uniform(0,1)
+			print synLoc
+		
+			ga[mm-1] = new Exp2Syn(synLoc)
+			nsB[mm-1] = new NetStim(synLoc)
+			nc[mm-1] = new NetCon(nsB[mm-1],ga[mm-1])
+			
+			ga[mm-1].tau1= 0.2 // made up
+			ga[mm-1].tau2 = 2
+			ga[mm-1].e = -80
+			
+			nsB[mm-1].interval = 0
+			nsB[mm-1].number = 1
+			nsB[mm-1].start = 5
+			nsB[mm-1].noise = 0
+			
+			nc[mm-1].weight = 0.0018
+			nc[mm-1].delay = 0
+		}
+	}
+	
+	print "out"
+
+}

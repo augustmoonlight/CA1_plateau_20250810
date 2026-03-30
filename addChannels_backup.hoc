@@ -1,0 +1,190 @@
+// DECLARE OBJECTS TO BE ASSIGNED DURING initChannels() CALL
+objref osec[10]
+
+
+// LOAD PARAMETERS FOR CHANNELS
+{
+	load_file("channelParameters_backup.hoc")
+}
+
+proc initChannels(){
+	// add in voltage-gated channels
+	{
+		forall {
+			insert pas  g_pas=1/(Rm)  Ra=global_ra  e_pas=Vleak
+			insert id
+			insert vmax
+			insert vmin
+		}
+		
+		soma.sec { 
+			insert nax  gbar_nax=gnaSoma  
+			insert kdr  gkdrbar_kdr=gkdr
+			insert kap  gkabar_kap=gkap
+			insert kad  gkabar_kad=0
+			insert pas	e_pas=Vleak  g_pas=1/Rm   Ra=global_ra  cm=Cm
+		}
+		
+
+		forsec basalList {
+			// msc: 031015: commented out below and replaced such that
+			// basal scaling looks like apical scaling
+		//	insert nax  gbar_nax=gnabar  
+		//	insert kdr  gkdrbar_kdr=gkdr
+		//	insert kap  gkabar_kap=gkap
+		//	insert kad  gkabar_kad=0
+		//	insert pas	e_pas=Vleak  g_pas=1/Rm   Ra=global_ra  cm=Cm
+					insert pas	e_pas=Vleak  Ra=global_ra 
+			for (x) {
+				xdist=distance(x)
+				if (xdist <= spinelimit) {
+					g_pas(x) = 1/Rm
+					cm(x) = Cm
+				} else {
+					g_pas(x) = spinefactor/Rm
+					cm(x) = spinefactor*Cm
+				}
+			}
+			insert nax	
+			insert kdr	gkdrbar_kdr=gkdr
+			insert kap
+			insert kad
+			gkabar_kap = 0
+			gkabar_kad = 0
+			
+			for (x) {
+				xdist = distance(x)
+				xdistNoLimit = xdist
+				if (xdist > dlimit) {
+					xdist = dlimit
+				}
+				gkabar_kap(x) = 0
+				gkabar_kad(x) = 0
+				if (xdist > dprox) {
+					gkabar_kad(x) = gkad*(1+xdist*dslope)
+				} else {
+					gkabar_kap(x) = gkap*(1+xdist*dslope)
+				}
+			}
+			
+		}
+		
+		soma.sec {
+			area(0.5)
+			distance()
+		}
+			
+		forsec apicalList {
+			insert pas	e_pas=Vleak  Ra=global_ra 
+			for (x) {
+				xdist=distance(x)
+				if (xdist <= spinelimit) {
+					g_pas(x) = 1/Rm
+					cm(x) = Cm
+				} else {
+					g_pas(x) = spinefactor/Rm
+					cm(x) = spinefactor*Cm
+				}
+			}
+			insert nax	
+			insert kdr	gkdrbar_kdr=gkdr
+			insert kap
+			insert kad
+			gkabar_kap = 0
+			gkabar_kad = 0
+			
+			for (x) {
+				xdist = distance(x)
+				xdistNoLimit = xdist
+				if (xdist > dlimit) {
+					xdist = dlimit
+				}
+				gkabar_kap(x) = 0
+				gkabar_kad(x) = 0
+				if (xdist > dprox) {
+					gkabar_kad(x) = gkad*(1+xdist*dslope)
+				} else {
+					gkabar_kap(x) = gkap*(1+xdist*dslope)
+				}
+			}
+		}
+		
+		
+		
+		
+		forsec obliqueList {
+		
+			
+//			osec[0] = new SectionRef()		// osec[0] contains the current oblique branch in the list
+//			for p = 1, 10 {
+//				osec[p-1].parent {
+//					osec[p] = new SectionRef()	// osec[1] references the parent of osec[0], osec[2] references 
+//					id1 = id1_id			// the parent of osec[1] etc. until the primary branch
+//				}
+//				if (id1 == 1) { 		// if osec[p] is the primary branch, stop incrementing p 
+//					break
+//				}
+//			}
+//			osec[p-1].sec{	// activate the first parent oblique branch
+//				pdist = id2_id(0)	// pdist is the distance of the parent oblique branch from the soma
+//				for (x) {
+//					if (x == 0) {
+//						odist = distance()	// odist is zeroed to where the parent oblique branch intersects the primary branch
+//					}
+//				}
+//			}
+//			osec[0].sec {
+				for (x) {
+					odist = distance(x) 	// odist is the distance of each segment along the oblique branch
+//					id3_id(x) = odist
+//					if (pdist > dlimit) {
+						pdist_k = dlimit
+//					} else {
+//						pdist_k = pdist
+//					}				
+//					if (gkabar_kap(x) > 0) {
+						gkabar_kap(x) = gkap*(1+pdist_k*dslope+odist*okslope)
+//					}
+//					if (gkabar_kad(x) > 0) {
+					gkabar_kad(x) = gkad*(1+pdist_k*dslope+odist*okslope)
+//					}
+//					if (gkabar_kap(x) > okmax) {
+//						gkabar_kap(x) = okmax
+//					}
+//					if (gkabar_kad(x) > okmax) {
+//						gkabar_kad(x) = okmax
+					}
+//					
+//				}
+//			}
+		}
+		
+
+		forsec tuftList {
+			gbar_nax = newGbarSlm
+		}
+		forsec ca3List {
+			gbar_nax = newGbarSr
+		}
+		soma.sec {
+			gbar_nax = gnaSoma
+		}
+		
+		soma.sec { 
+			distance()
+		}
+		forsec basalList {
+			// msc: 031015: changed the below original code to scale basal densities
+			// like apical densities.  See assignment of channels in earlier
+			// forsec basalList block of code.
+		//	for (x) {
+		//		odist=distance(x)	
+		//		gkabar_kap(x) = gkap*(1+odist*okslope)
+		//		if (gkabar_kap(x) > okmax) {
+		//			gkabar_kap(x) = okmax
+		//		}
+		//	}
+		}
+	}
+}
+

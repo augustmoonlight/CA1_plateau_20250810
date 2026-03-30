@@ -1,0 +1,18 @@
+// This does a PP + SC stimulus.
+
+// Create graph.
+objref ppScGr
+strdef lab1,lab2
+lab1 = "PP + SC"
+lab2 = "Inh + exc"
+toRem = addTracesToGraph(ppScGr,lab1,lab2)
+
+// Prep synapses.
+excInhPrep(nExcUseTuft,nExcUseCa3,nInhFf,nInhCa3,0)
+
+// Run
+run()
+
+// Prep for next run.
+graphList[0].remove(toRem-1)
+

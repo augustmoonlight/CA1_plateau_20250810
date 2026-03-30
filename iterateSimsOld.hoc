@@ -1,0 +1,925 @@
+// ITERATE FOR A GIVEN SIMULATION TO UNDERSTAND THE ROBUSTNESS OF RESPONSES.
+strdef genToTarget
+
+// Run a few simulations, recording peak voltages everywhere, and plot results.
+// Ensure that the genotype (e.g., "sst") and the domain (e.g., tuftList) are
+// switched proeprly in the activateExcitation() and activateInhibition()
+// calls.
+totSims = 100 // number of simulations to run; if set = 1, do pilot
+doTbs = 0 // spread out inputs in time like TBS?  [simultaneously vs. split across 5 stimuli at 10 msec intervals]
+doTuft = 0 // switch to control between tuft simulations and SO/SR simulations
+
+
+// Parameters that don't need to be varied.
+tstop = 150+doTbs*50 // do 150 if not doing TBS, 200 otherwise
+excStart = 100
+inhStart = excStart
+tbsInt = 10 // in msec, spacing between TBS epochs
+tbsN = 5 // number of TBS epochs
+
+if(doTuft){
+	if(1==cellId){
+		nExcAct = 100 // number of excitatory synapses to activate
+		nInhAct = 20 // number of inhibitory synapses to activate; cant go higher than 87
+	
+		dendInd1 = 101 // left apical, just past SR/SLM border
+		dendInd2 = 149 // left apical, terminal neurite
+		
+		plotHiSoma = -1
+		plotHiDend1 = -1
+		plotHiDend2 = -1
+		if(abs(totSims-1)<0.1){
+			randShift = 3 // shift the seed; used for toggling between sub and suprathreshold random instances
+				      // used for getting representative traces for sup
+				      // = 0 produces a subthreshold tuft 
+		}else{
+			randShift = 0
+		}
+	}else{
+		print "***********************still need to tune inputs for Cell 2"
+		nExcAct = 200 // number of excitatory synapses to activate
+		nInhAct = 20 // number of inhibitory synapses to activate; cant go higher than 87
+	
+		dendInd1 = 105 // right apical, just past SR/SLM border
+		dendInd2 = 131 // right apical, terminal neurite
+		
+		plotHiSoma = -1
+		plotHiDend1 = -1
+		plotHiDend2 = -1
+		if(abs(totSims-1)<0.1){
+			randShift = 3 // shift the seed; used for toggling between sub and suprathreshold random instances
+				      // used for getting representative traces for sup
+				      // = 0 produces a subthreshold tuft 
+		}else{
+			randShift = 0
+		}
+	}
+}else{
+	if(1==cellId){
+		thresSwitch = 0 // a switch to control whether all responses are
+				// used in histogram.  If = 0, use all responses,
+				// if = 1, only suprathreshold responses; if = -1
+				// only subthreshold responses
+		doInset = 0 // a switch to control whether to plot histograms 
+			    // with a truncated right X value, allowing better
+			    // visualisation of low X values.
+		nExcAct = 140+150*doTbs // number of excitatory synapses to activate
+		nInhAct = 40//+40*doTbs // number of inhibitory synapses to activate; cant go higher than 94
+	
+		dendInd1 = 144 // radial oblique proximal to soma
+		dendInd2 = 123 // radial oblique distal to soma
+		
+		if(doInset){
+			plotHiSoma = 20 // 20 for subthreshold only
+			plotHiDend1 = 20 // 20 for subthreshold only
+			plotHiDend2 = 20 // 20 for subthreshold only
+		}else{
+			plotHiSoma = -1 // 15 for subthreshold only
+			plotHiDend1 = -1 // 20 for subthreshold only
+			plotHiDend2 = -1 // 12 for subthreshold only
+		}
+		
+		if(abs(totSims-1)<0.1){
+			randShift = 12//1 // shift the seed; used for toggling between sub and suprathreshold random instances
+				      // used for getting representative traces for sup
+				      // = 1 produces a subthres response in NPY only
+				      // = 2 produces a subthres response in VGAT and NPY 
+		}else{
+			randShift = 100//0
+		}
+	}else{
+		print "***********************still need to tune inputs for Cell 2"
+		nExcAct = 140+150*doTbs // number of excitatory synapses to activate
+		nInhAct = 40//+40*doTbs // number of inhibitory synapses to activate; cant go higher than 94
+	
+		dendInd1 = 49 // radial oblique proximal to soma
+		dendInd2 = 72 // radial oblique distal to soma
+		
+		plotHiSoma = -1 // 15 for subthreshold only
+		plotHiDend1 = -1 // 20 for subthreshold only
+		plotHiDend2 = -1 // 12 for subthreshold only
+		
+		if(abs(totSims-1)<0.1){
+			randShift = 1 // shift the seed; used for toggling between sub and suprathreshold random instances
+				      // used for getting representative traces for sup
+				      // = 1 produces a subthres response in NPY only
+				      // = 2 produces a subthres response in VGAT and NPY 
+		}else{
+			randShift = 0
+		}
+	}
+		
+}
+	
+// 051815: look at weird basal behaviour
+/*
+print "Looking at weird basaliness"
+objref tempGr,tempBox
+tempBox = new VBox()
+tempBox.intercept(1)
+tempGr = new Graph()
+tempGr.addvar("Cell[0].dend[1].v(0.5)",1,1)
+tempGr.addvar("Cell[0].dend[44].v(0.5)",2,1)
+tempGr.addvar("soma.sec.v(0.5)",3,1)
+tempGr.size(100,120,-70,0)
+graphList[0].append(tempGr)
+tempGr.exec_menu("Keep Lines")
+tempBox.intercept(0)
+tempBox.map("volts",300,100,500,500)
+*/
+
+// Determine number of segments to track.
+totSegs = 0
+forall { for (x,0) { totSegs +=1 } }
+
+// Create a distance associated with every segment; take a convention that
+// basals are <0.
+objref segDist
+segDist = new Vector(totSegs)
+soma.sec {distance()}
+curSeg = 0
+forall {
+	curSec = new SectionRef()
+	if(sectionRefInList(curSec,basalList)){
+		coFact=-1
+	}else{
+		coFact=1
+	}
+	for(x,0){
+		segDist.x[curSeg] = coFact*distance(x)
+		curSeg+=1
+	}
+}
+
+// Track peak voltages.
+objref peakVoltNone[totSims],peakVoltVgat[totSims],peakVoltOther[totSims]
+for ii=0,totSims-1{
+	peakVoltNone[ii] = new Vector(totSegs)
+	peakVoltVgat[ii] = new Vector(totSegs)
+	peakVoltOther[ii] = new Vector(totSegs)
+}
+
+// Track baseline voltages to be subtracted.
+objref baseVolts
+baseVolts = new Vector(totSegs)
+
+// Track distributions of a few special regions.
+objref dend1Ref,dend2Ref
+Cell[0].dend[dendInd1] {dend1Ref = new SectionRef()} 
+Cell[0].dend[dendInd2] {dend2Ref = new SectionRef()} 
+objref somaVoltNone,dend1VoltNone,dend2VoltNone
+objref somaVoltVgat,dend1VoltVgat,dend2VoltVgat,somaVoltOther,dend1VoltOther,dend2VoltOther
+somaVoltNone = new Vector(totSims)
+dend1VoltNone = new Vector(totSims)
+dend2VoltNone = new Vector(totSims)
+somaVoltVgat = new Vector(totSims)
+dend1VoltVgat = new Vector(totSims)
+dend2VoltVgat = new Vector(totSims)
+somaVoltOther = new Vector(totSims)
+dend1VoltOther = new Vector(totSims)
+dend2VoltOther = new Vector(totSims)
+
+// Plot things, if only doing a pilot simulation.
+objref voltGrNone,voltGrVgat,voltGrOther
+objref shapeGrNone,shapeGrVgat,shapeGrOther
+if(totSims<1.1){
+	voltGrNone = new Graph()
+	voltGrNone.addvar("soma.sec.v(0.5)",2,1)
+	voltGrNone.addvar("dend1Ref.sec.v(0.5)",3,1) 
+	voltGrNone.addvar("dend2Ref.sec.v(0.5)",4,1) 
+	voltGrNone.label("No inhib, example volts")
+	voltGrNone.exec_menu("Keep Lines")
+	voltGrNone.size(0,tstop,-70,0)
+	
+	voltGrVgat = new Graph()
+	voltGrVgat.addvar("soma.sec.v(0.5)",2,1)
+	voltGrVgat.addvar("dend1Ref.sec.v(0.5)",3,1) 
+	voltGrVgat.addvar("dend2Ref.sec.v(0.5)",4,1)  
+	voltGrVgat.label("VGAT, example volts")
+	voltGrVgat.exec_menu("Keep Lines")
+	voltGrVgat.size(0,tstop,-70,0)
+	
+	voltGrOther = new Graph()
+	voltGrOther.addvar("soma.sec.v(0.5)",2,1)
+	voltGrOther.addvar("dend1Ref.sec.v(0.5)",3,1) 
+	voltGrOther.addvar("dend2Ref.sec.v(0.5)",4,1)  
+	voltGrOther.label("Other, example volts")
+	voltGrNone.exec_menu("Keep Lines")
+	voltGrOther.size(0,tstop,-70,0)
+	
+	shapeGrNone = new Shape()
+	shapeGrNone.label("Exc")
+	shapeGrVgat = new Shape()
+	shapeGrVgat.label("VGAT")
+	shapeGrOther = new Shape()
+	shapeGrOther.label("Other")
+}
+
+
+// Run iterations of simulations.
+objref curInh,curExc
+
+for iii=0,totSims-1 {
+	print "************************* SIM#",iii
+	// Call the below two functions only once per iteration, in order
+	// to keep the channel properties and flagged genotypes constant
+	// between simulations.
+	initChannels()
+	seedGenotypes() // re-distribute the flagged synapses
+	
+	// IF DOING THE VERY FIRST SIMULATIONS, CALCULATE BASELINE VOLTAGES
+	// FOR LATER SUBTRACTION.
+	if(iii<0.1){
+		// Clear excitation and inhibition.
+		activateExcitation(cellList,-1,iii+randShift) // shut off excitation
+		activateInhibition(cellList,-1,iii+randShift) // shut off inhibition
+		
+		run()
+		
+		// Assign baseline voltages.
+		curSeg = 0
+		forall {
+			for (x,0) {
+				baseVolts.x[curSeg] = vm_vmax(x)
+				curSeg+=1
+			}
+		}
+		
+		soma.sec { somaVoltBase = vm_vmax(0.5) }
+		dend1Ref.sec { dend1VoltBase = vm_vmax(0.5) }
+		dend2Ref.sec { dend2VoltBase = vm_vmax(0.5) }
+	}
+	
+	// DO SIMULATIONS WITH NO INHIBITION AND STORE RESULTS.
+		// Clear excitation and inhibition, and then turn on select synapses.
+		activateExcitation(cellList,-1,iii+randShift) // shut off excitation
+		activateInhibition(cellList,-1,iii+randShift) // shut off inhibition
+		
+		if(doTuft){
+			curExc = activateExcitation(tuftList,nExcAct,iii+randShift)
+		}else{
+			curExc = activateExcitation(ca3List,nExcAct,iii+randShift)
+		}
+		
+		for ii=0,curExc.size()-1{
+			nsAmpa[curExc.x[ii]].start = excStart + doTbs*int( ii*tbsN/nExcAct + 0.0001)*tbsInt
+			nsNmda[curExc.x[ii]].start = excStart + doTbs*int( ii*tbsN/nExcAct + 0.0001)*tbsInt
+			if(totSims<1.1){	
+				shapeGrNone.point_mark(synAmpa[curExc.x[ii]],2,"O",6)
+			}
+		}
+		
+		if(totSims<1.1){ 
+			curGr = graphList[0].append(voltGrNone) 
+		}
+		
+		run()
+		
+		// Assign peak voltages.
+		curSeg = 0
+		forall {
+			for (x,0) {
+				peakVoltNone[iii].x[curSeg] = vm_vmax(x)
+				curSeg+=1
+			}
+		}
+		
+		// Assign specific distributions.
+		soma.sec { somaVoltNone.x[iii] = vm_vmax(0.5) }
+		dend1Ref.sec { dend1VoltNone.x[iii] = vm_vmax(0.5) }
+		dend2Ref.sec { dend2VoltNone.x[iii] = vm_vmax(0.5) } 
+		
+	// DO VGAT SIMULATION AND STORE RESULTS.
+		// Clear excitation and inhibition, and then turn on select synapses.
+		activateExcitation(cellList,-1,iii+randShift) // shut off excitation
+		activateInhibition(cellList,-1,iii+randShift) // shut off inhibition
+		if(doTuft){
+			curExc = activateExcitation(tuftList,nExcAct,iii+randShift)
+			curInh = activateInhibition(tuftList,nInhAct,iii+randShift,"vgat",1,"sst",0)
+		}else{
+			curExc = activateExcitation(ca3List,nExcAct,iii+randShift)
+			curInh = activateInhibition(ca3List,nInhAct,iii+randShift,"vgat",1,"npy",0)
+		}
+			
+		
+		
+		for ii=0,curExc.size()-1{
+			nsAmpa[curExc.x[ii]].start = excStart + doTbs*int( ii*tbsN/nExcAct + 0.0001)*tbsInt
+			nsNmda[curExc.x[ii]].start = excStart + doTbs*int( ii*tbsN/nExcAct + 0.0001)*tbsInt
+		}
+		for ii=0,curInh.size()-1{
+			nsVgatAt[curInh.x[ii]].start = inhStart + doTbs*int( ii*tbsN/nInhAct + 0.0001)*tbsInt
+			if(totSims<1.1){
+				shapeGrVgat.point_mark(synVgatAt[curInh.x[ii]],3,"O",6)
+			}
+		}
+		
+		if(totSims<1.1){ 
+			graphList[0].remove(curGr-1)
+			curGr = graphList[0].append(voltGrVgat) 
+		}
+		
+		run()
+		
+		// Assign peak voltages.
+		curSeg = 0
+		forall {
+			for (x,0) {
+				peakVoltVgat[iii].x[curSeg] = vm_vmax(x)
+				curSeg+=1
+			}
+		}
+		
+		// Assign specific distributions.
+		soma.sec { somaVoltVgat.x[iii] = vm_vmax(0.5) }
+		dend1Ref.sec { dend1VoltVgat.x[iii] = vm_vmax(0.5) }
+		dend2Ref.sec { dend2VoltVgat.x[iii] = vm_vmax(0.5) } 
+	// DO "OTHER" SIMULATION AND STORE RESULTS.
+		// Clear excitation and inhibition, and then turn on select synapses.
+		activateExcitation(cellList,-1,iii+randShift) // shut off excitation
+		activateInhibition(cellList,-1,iii+randShift) // shut off inhibition
+		if(doTuft){
+			curExc = activateExcitation(tuftList,nExcAct,iii+randShift)
+			curInh = activateInhibition(tuftList,nInhAct,iii+randShift,"vgat",1,"sst",1)		
+		}else{
+			curExc = activateExcitation(ca3List,nExcAct,iii+randShift)
+			curInh = activateInhibition(ca3List,nInhAct,iii+randShift,"vgat",1,"npy",1)
+		}
+		for ii=0,curExc.size()-1{
+			nsAmpa[curExc.x[ii]].start = excStart + doTbs*int( ii*tbsN/nExcAct + 0.0001)*tbsInt
+			nsNmda[curExc.x[ii]].start = excStart + doTbs*int( ii*tbsN/nExcAct + 0.0001)*tbsInt
+		}
+		for ii=0,curInh.size()-1{
+			nsVgatAt[curInh.x[ii]].start = inhStart + doTbs*int( ii*tbsN/nInhAct + 0.0001)*tbsInt
+			if(totSims<1.1){	
+				shapeGrOther.point_mark(synVgatAt[curInh.x[ii]],4,"O",6)
+			}
+		}
+		
+		if(totSims<1.1){ 
+			graphList[0].remove(curGr-1)
+			curGr = graphList[0].append(voltGrOther) 
+		}
+		
+		run()
+		
+		// Assign peak voltages.
+		curSeg = 0
+		forall {
+			for (x,0) {
+				peakVoltOther[iii].x[curSeg] = vm_vmax(x)
+				curSeg+=1
+			}
+		}
+		
+		// Assign specific distributions.
+		soma.sec { somaVoltOther.x[iii] = vm_vmax(0.5) }
+		dend1Ref.sec { dend1VoltOther.x[iii] = vm_vmax(0.5) }
+		dend2Ref.sec { dend2VoltOther.x[iii] = vm_vmax(0.5) } 	
+		
+				
+		if(totSims<1.1){ 
+			graphList[0].remove(curGr-1)
+		}
+
+	
+}
+
+// Process results.
+// Subtract off baseline voltages.
+for ii=0,totSims-1{
+	peakVoltNone[ii].sub(baseVolts)
+	peakVoltVgat[ii].sub(baseVolts)
+	peakVoltOther[ii].sub(baseVolts)
+}	
+
+
+objref peakVoltNoneMean,peakVoltVgatMean,peakVoltOtherMean
+peakVoltNoneMean = new Vector(totSegs)
+peakVoltVgatMean = new Vector(totSegs)
+peakVoltOtherMean = new Vector(totSegs)
+
+for ii=0,totSims-1{
+	for jj=0,totSegs-1{
+		peakVoltNoneMean.x[jj] = peakVoltNoneMean.x[jj] + peakVoltNone[ii].x[jj]
+		peakVoltVgatMean.x[jj] = peakVoltVgatMean.x[jj] + peakVoltVgat[ii].x[jj]
+		peakVoltOtherMean.x[jj] = peakVoltOtherMean.x[jj] + peakVoltOther[ii].x[jj]
+	}
+}
+peakVoltNoneMean.div(totSims)
+peakVoltVgatMean.div(totSims)
+peakVoltOtherMean.div(totSims)
+
+
+somaVoltNone.sub(somaVoltBase)
+dend1VoltNone.sub(dend1VoltBase)
+dend2VoltNone.sub(dend2VoltBase)
+somaVoltVgat.sub(somaVoltBase)
+dend1VoltVgat.sub(dend1VoltBase)
+dend2VoltVgat.sub(dend2VoltBase)
+somaVoltOther.sub(somaVoltBase)
+dend1VoltOther.sub(dend1VoltBase)
+dend2VoltOther.sub(dend2VoltBase)
+
+
+
+// Print output; how many spikes are above a certain voltage threshold?  This
+// is done to address a question of Erik's in an email dated 4/23/15.
+voltThresReport = 25
+objref voltThresVec
+{
+	voltThresVec = new Vector()
+	voltThresVec.indvwhere(dend2VoltNone,">=",voltThresReport)
+	print "For no inhibition, number of events great than ",voltThresReport, " mV is ",voltThresVec.size()
+	
+	voltThresVec = new Vector()
+	voltThresVec.indvwhere(dend2VoltVgat,">=",voltThresReport)
+	print "For VGAT inhibition, number of events great than ",voltThresReport, " mV is ",voltThresVec.size()
+	
+	voltThresVec = new Vector()
+	voltThresVec.indvwhere(dend2VoltOther,">=",voltThresReport)
+	print "For non-VGAT inhibition, number of events great than ",voltThresReport, " mV is ",voltThresVec.size()
+}
+// Print output; how many spikes elicited somatic action potentials?  This
+// is done to address a question of Erik's in an email dated 4/23/15.
+voltThresReport = 60
+{
+	voltThresVec = new Vector()
+	voltThresVec.indvwhere(somaVoltNone,">=",voltThresReport)
+	print "For no inhibition, number of APs is ",voltThresVec.size()
+	
+	voltThresVec = new Vector()
+	voltThresVec.indvwhere(somaVoltVgat,">=",voltThresReport)
+	print "For VGAT inhibition, number of APs is ",voltThresVec.size()
+	
+	voltThresVec = new Vector()
+	voltThresVec.indvwhere(somaVoltOther,">=",voltThresReport)
+	print "For non-VGAT inhibition, number of APs is ",voltThresVec.size()
+}
+
+// Adjust for subthreshold vs. suprathreshold, if desired.
+apThres = 60 // in mV, minimum volt excursion for an AP
+if(thresSwitch>0.1){
+	print "ANALYZING/PLOTTING SUPRATHRESHOLD ONLY!"
+	
+	for ii=0,totSims-1{
+		curInd = totSims-(ii+1)
+		if(somaVoltNone.x[curInd]>apThres){
+			// do nothing
+		}else{
+			somaVoltNone.remove(curInd)
+			dend1VoltNone.remove(curInd)
+			dend2VoltNone.remove(curInd)
+		}
+	}
+	
+	for ii=0,totSims-1{
+		curInd = totSims-(ii+1)
+		if(somaVoltVgat.x[curInd]>apThres){
+			// do nothing
+		}else{
+			somaVoltVgat.remove(curInd)
+			dend1VoltVgat.remove(curInd)
+			dend2VoltVgat.remove(curInd)
+		}
+	}
+	
+	
+	for ii=0,totSims-1{
+		curInd = totSims-(ii+1)
+		if(somaVoltOther.x[curInd]>apThres){
+			// do nothing
+		}else{
+			somaVoltOther.remove(curInd)
+			dend1VoltOther.remove(curInd)
+			dend2VoltOther.remove(curInd)
+		}
+	}
+	
+}
+
+if(thresSwitch<(-0.1)){
+	print "ANALYZING/PLOTTING SUBTHRESHOLD ONLY!"
+
+	for ii=0,totSims-1{
+		curInd = totSims-(ii+1)
+		if(somaVoltNone.x[curInd]<apThres){
+			// do nothing
+		}else{
+			somaVoltNone.remove(curInd)
+			dend1VoltNone.remove(curInd)
+			dend2VoltNone.remove(curInd)
+		}
+	}
+	
+	for ii=0,totSims-1{
+		curInd = totSims-(ii+1)
+		if(somaVoltVgat.x[curInd]<apThres){
+			// do nothing
+		}else{
+			somaVoltVgat.remove(curInd)
+			dend1VoltVgat.remove(curInd)
+			dend2VoltVgat.remove(curInd)
+		}
+	}
+	
+	for ii=0,totSims-1{
+		curInd = totSims-(ii+1)
+		if(somaVoltOther.x[curInd]<apThres){
+			// do nothing
+		}else{
+			somaVoltOther.remove(curInd)
+			dend1VoltOther.remove(curInd)
+			dend2VoltOther.remove(curInd)
+		}
+	}
+}
+print "A"
+// Print mean values.
+print "For no inhibition, mean +- SD: "
+print "\tMean value for dend2 is: ",dend2VoltNone.mean(),"+/-",dend2VoltNone.stdev()
+print "\tMean value for dend1 is: ",dend1VoltNone.mean(),"+/-",dend1VoltNone.stdev()
+print "\tMean value for soma is: ",somaVoltNone.mean(),"+/-",somaVoltNone.stdev()
+
+print "For VGAT inhibition, mean +- SD: "
+print "\tMean value for dend2 is: ",dend2VoltVgat.mean(),"+/-",dend2VoltVgat.stdev()
+print "\tMean value for dend1 is: ",dend1VoltVgat.mean(),"+/-",dend1VoltVgat.stdev()
+print "\tMean value for soma is: ",somaVoltVgat.mean(),"+/-",somaVoltVgat.stdev()
+
+print "For non-VGAT inhibition, mean +- SD: "
+print "\tMean value for dend2 is: ",dend2VoltOther.mean(),"+/-",dend2VoltOther.stdev()
+print "\tMean value for dend1 is: ",dend1VoltOther.mean(),"+/-",dend1VoltOther.stdev()
+print "\tMean value for soma is: ",somaVoltOther.mean(),"+/-",somaVoltOther.stdev()
+
+// Project onto morphology.
+curSeg = 0
+forall {
+	for(x,0){
+		v1_vmax(x) = peakVoltNoneMean.x[curSeg]
+		v2_vmax(x) = peakVoltVgatMean.x[curSeg]
+		v3_vmax(x) = peakVoltOtherMean.x[curSeg]
+		v4_vmax(x) = peakVoltVgatMean.x[curSeg]-peakVoltOtherMean.x[curSeg]
+		curSeg+=1
+	}
+}
+
+// If doing NPY, condition dataset into AP and non-AP trials, and project
+// the ensuing voltage profiles onto morphology.
+objref peakVoltVgatAp,peakVoltVgatSub
+objref peakVoltOtherAp,peakVoltOtherSub
+objref subGr,apGr
+if(!doTuft){
+	if(abs(thresSwitch)<0.1){
+
+		peakVoltVgatAp = new Vector(totSegs)
+		peakVoltVgatSub = new Vector(totSegs)
+		peakVoltOtherAp = new Vector(totSegs)
+		peakVoltOtherSub = new Vector(totSegs)
+		
+		numVgatAp = 0
+		numVgatSub = 0
+		numOtherAp = 0
+		numOtherSub = 0
+		
+		for ii=0,totSims-1{
+			if(somaVoltVgat.x[ii]>70){
+				for jj=0,totSegs-1{
+					peakVoltVgatAp.x[jj] = peakVoltVgatAp.x[jj] + peakVoltVgat[ii].x[jj]
+				}
+				numVgatAp+=1
+			}else{
+				for jj=0,totSegs-1{
+					peakVoltVgatSub.x[jj] = peakVoltVgatSub.x[jj] + peakVoltVgat[ii].x[jj]
+				}
+				numVgatSub+=1
+			}
+			
+			if(somaVoltOther.x[ii]>70){
+				for jj=0,totSegs-1{
+					peakVoltOtherAp.x[jj] = peakVoltOtherAp.x[jj] + peakVoltOther[ii].x[jj]
+				}
+				numOtherAp+=1
+			}else{
+				for jj=0,totSegs-1{
+					peakVoltOtherSub.x[jj] = peakVoltOtherSub.x[jj] + peakVoltOther[ii].x[jj]
+				}
+				numOtherSub+=1
+			}
+		}
+		
+		// Plot and compute only if have at least one trial in each class 
+		// of VGAT vs. other and AP vs. sub.
+		if( (numVgatAp*numVgatSub*numOtherAp*numOtherSub) >0.9 ){
+			print "Number of APs in VGAT sim: ",numVgatAp
+			print "Number of subthreshold responses in VGAT sim: ",numVgatSub
+			print "Number of APs in other sim: ",numOtherAp
+			print "Number of subthreshold responses in other sim: ",numOtherSub
+		
+			peakVoltVgatAp.div(numVgatAp)
+			peakVoltVgatSub.div(numVgatSub)
+			peakVoltOtherAp.div(numOtherAp)
+			peakVoltOtherSub.div(numOtherSub)
+			
+			
+			curSeg = 0
+			forall{
+				for(x,0){
+					v5_vmax(x) = peakVoltVgatSub.x[curSeg] - peakVoltOtherSub.x[curSeg]
+					v6_vmax(x) = peakVoltVgatAp.x[curSeg] - peakVoltOtherAp.x[curSeg]
+					curSeg+=1
+				}
+			}
+			
+			subLo = 0
+			subHi = 0
+			apLo = 0
+			apHi = 0
+			
+			forall {
+				for(x,0) {
+					if(v5_vmax(x)<subLo){subLo = v5_vmax(x)}
+					if(v5_vmax(x)>subHi){subHi = v5_vmax(x)}
+					if(v6_vmax(x)<apLo){apLo = v6_vmax(x)}
+					if(v6_vmax(x)>apHi){apHi = v6_vmax(x)}
+				}
+			}
+			
+			subGr = new PlotShape()
+			subGr.variable("v5_vmax")
+			subGr.exec_menu("Shape Plot")
+			subGr.exec_menu("Show Diam")
+			subGr.scale(int(subLo),int(subHi+1))
+			subGr.label("Sub diff")
+			
+			apGr = new PlotShape()
+			apGr.variable("v6_vmax")
+			apGr.exec_menu("Shape Plot")
+			apGr.exec_menu("Show Diam")
+			apGr.scale(int(apLo),int(apHi+1))
+			apGr.label("AP diff")
+		}
+	}		
+}
+		
+
+
+// Define upper and lower ranges for plots.
+plotLo = 0
+plotHi = peakVoltNoneMean.max
+plotHi = int(plotHi+1) // make it a round number
+
+// Visualise results in shape plots.
+objref shNone,shVgat,shOther,shDiff
+
+shNone = new PlotShape()
+shNone.variable("v1_vmax")
+shNone.exec_menu("Shape Plot")
+shNone.exec_menu("Show Diam")
+shNone.scale(plotLo,plotHi)
+shNone.label("No inhib, avg vmax")
+
+shVgat = new PlotShape()
+shVgat.variable("v2_vmax")
+shVgat.exec_menu("Shape Plot")
+shVgat.exec_menu("Show Diam")
+shVgat.scale(plotLo,plotHi)
+shVgat.label("VGAT, avg vmax")
+
+shOther = new PlotShape()
+shOther.variable("v3_vmax")
+shOther.exec_menu("Shape Plot")
+shOther.exec_menu("Show Diam")
+shOther.scale(plotLo,plotHi)
+shOther.label("Other, avg vmax")
+
+shDiff = new PlotShape()
+shDiff.variable("v4_vmax")
+shDiff.exec_menu("Shape Plot")
+shDiff.exec_menu("Show Diam")
+theLo = 0
+theHi = 0
+forall{
+	for(x,0){
+		if(v4_vmax(x)<theLo){
+			theLo = v4_vmax(x)
+		}
+		if(v4_vmax(x)>theHi){
+			theHi = v4_vmax(x)
+		}
+	}
+}
+if(abs(theLo)>abs(theHi)){
+	theHi = abs(theLo)
+	theLo = theHi*-1
+}else{
+	theHi = abs(theHi)
+	theLo = theHi*-1
+}
+
+
+// Update colouring for difference plot.
+nColour = 11 // total number of colours in plot; always choose odd so that middle colour is white
+shDiff.colormap(nColour,1)
+for (ijk=0; ijk<(nColour-0.01); ijk=ijk+1){
+	// Assign scale factor.
+	curCol = ( ijk-(nColour-1)/2 ) // centre value about 0
+	curCol = curCol / ( (nColour-1)/2 ) // value range is now [-1,1]; adjusted again below
+	if(curCol<(-0.001)){
+		theSign = -1
+	}else{
+		theSign = 1
+	}
+	curCol = int(abs(curCol)*255+0.1) // value range is now [0,255] for pixel intensity
+	
+	if(theSign<0){
+		shDiff.colormap(ijk,int(255.1-curCol),int(255.1-curCol),255) // GIVES BLUE
+		//shDiff.colormap(ijk,int(255.1-curCol),255,255) // GIVES CYAN
+	}else{
+		//shDiff.colormap(ijk,255,255,int(255.1-curCol)) // GIVES YELLOW
+		shDiff.colormap(ijk,255,int(255.1-curCol),int(255.1-curCol)) // GIVES RED
+	}
+}
+
+shDiff.scale(theLo,theHi)
+shDiff.label("difference")
+
+
+// Visualise results in scatter plots.
+objref scatNone,scatVgat,scatOther
+
+scatNone = new Graph()
+peakVoltNoneMean.mark(scatNone,segDist,"O",3)
+scatNone.size(-200,500,plotLo,plotHi)
+scatNone.label("No inhib, avg vmax")
+
+scatVgat = new Graph()
+peakVoltVgatMean.mark(scatVgat,segDist,"O",3)
+scatVgat.size(-200,500,plotLo,plotHi)
+scatVgat.label("VGAT, avg vmax")
+
+scatOther = new Graph()
+peakVoltOtherMean.mark(scatOther,segDist,"O",3)
+scatOther.size(-200,500,plotLo,plotHi)
+scatOther.label("Other, avg vmax")
+
+// Visualise distributions.
+objref somaVoltNoneHist,dend1VoltNoneHist,dend2VoltNoneHist
+objref somaVoltVgatHist,dend1VoltVgatHist,dend2VoltVgatHist
+objref somaVoltOtherHist,dend1VoltOtherHist,dend2VoltOtherHist
+nBin = 50
+//binWidth = (plotHi-plotLo)/nBin
+
+if(plotHiSoma<0){ plotHiSoma = somaVoltNone.max*1.1 }
+if(plotHiDend1<0){ plotHiDend1 = dend1VoltNone.max*1.1 }
+if(plotHiDend2<0){ plotHiDend2 = dend2VoltNone.max*1.1 }
+
+// Given two vectors, corresponding the x values desired in the histogram and
+// and the observed values in the dataset, return EITHER the x axis ($3=0) or
+// the y axis ($3=1) for the histogram.
+
+// $o1: vector.  X values, defines the start and endpoints for bins.
+// $o2: y values that are to be histogram'ed.
+// $3: variable.  A switch to control whether the X or Y axis is returned
+//	( $3 = 0: x axis ; $3 = 1: y axis)
+obfunc getHistAxis(){local ii,loX,hiX,loY,hiY localobj sortY,binY,histX,histY,tempVec
+	// Define local objects.
+	tempVec = new Vector()
+	binY = new Vector($o1.size()-1)  // subtract one as number of bins is one less than the number of X valus
+	sortY = new Vector()
+
+	
+	// Populate histogram values.
+	for ii=0,$o1.size()-2{
+		loX = $o1.x[ii]
+		hiX = $o1.x[ii+1]
+		
+	//	loY = sortY.indwhere("<",loX)
+	//	hiY = sortY.indwhere("<",hiX)
+	
+		tempVec.indvwhere($o2,"[]",loX,hiX) // "[]" OK as working with floats
+		binY.x[ii] = tempVec.size
+		
+	}
+	
+	// Manipulate X and Y axes to plot things as a nice cityscape view
+	// in NEURON.
+	histX = new Vector(3*(binY.size())+1)
+	histY = new Vector(3*(binY.size())+1)
+	
+	histX.x[0] = $o1.x[0]
+	histY.x[0] = 0
+	
+	for ii=0,binY.size()-1{	
+		histX.x[3*ii+1] = $o1.x[ii]
+		histX.x[3*ii+2] = $o1.x[ii+1]
+		histX.x[3*ii+3] = $o1.x[ii+1]
+	
+		histY.x[3*ii+1] = binY.x[ii]
+		histY.x[3*ii+2] = binY.x[ii]
+		histY.x[3*ii+3] = 0
+	}
+	
+	if($3<0.1){
+		return histX
+	}else{
+		return histY
+	}
+}
+
+objref somaVoltAxis,dend1VoltAxis,dend2VoltAxis
+objref somaVoltHistX,dend1VoltHistX,dend2VoltHistX
+objref somaVoltNoneHistY,dend1VoltNoneHistY,dend2VoltNoneHistY
+objref somaVoltVgatHistY,dend1VoltVgatHistY,dend2VoltVgatHistY
+objref somaVoltOtherHistY,dend1VoltOtherHistY,dend2VoltOtherHistY
+
+objref somaVoltGr,dend1VoltGr,dend2VoltGr
+somaVoltGr = new Graph()
+dend1VoltGr = new Graph()
+dend2VoltGr = new Graph()
+somaVoltGr.label("Soma")
+dend1VoltGr.label("Dend1")
+dend2VoltGr.label("Dend2")
+
+// Plot histograms.  Arguments allow the bins for the histograms to be switched,
+// facilitating on-the-fly graphing.
+// $1: variable.  low X value of histograms.
+// $2: variable.  high X value of soma histogram.
+// $3: variable.  high x value of dend1 histogram.
+// $4: variable.  high x value of dend2 histogram.
+// $5: optional variable.  Number of bins; defaults to nBin.
+proc plotHist(){ local nb,pl,hs,hd1,hd2
+print "A"
+	if(numarg()>4.1){
+		nb = $5
+	}else{
+		nb = nBin
+	}
+
+	pl = $1
+	hs = $2
+	hd1 = $3
+	hd2 = $4
+	
+print "B"
+	binWidthSoma = (hs-pl)/nb
+	binWidthDend1 = (hd1-pl)/nb
+	binWidthDend2 = (hd2-pl)/nb
+
+	somaVoltAxis = new Vector(nb)
+	dend1VoltAxis = new Vector(nb)
+	dend2VoltAxis = new Vector(nb)
+	somaVoltAxis.indgen(pl,binWidthSoma)
+	dend1VoltAxis.indgen(pl,binWidthDend1)
+	dend2VoltAxis.indgen(pl,binWidthDend2)
+
+
+print "C"
+	somaVoltHistX = getHistAxis(somaVoltAxis,somaVoltNone,0)
+	dend1VoltHistX = getHistAxis(dend1VoltAxis,dend1VoltNone,0)
+	dend2VoltHistX = getHistAxis(dend2VoltAxis,dend2VoltNone,0)
+	
+	somaVoltNoneHistY = getHistAxis(somaVoltAxis,somaVoltNone,1)
+	dend1VoltNoneHistY = getHistAxis(dend1VoltAxis,dend1VoltNone,1)
+	dend2VoltNoneHistY = getHistAxis(dend2VoltAxis,dend2VoltNone,1)
+	
+	somaVoltVgatHistY = getHistAxis(somaVoltAxis,somaVoltVgat,1)
+	dend1VoltVgatHistY = getHistAxis(dend1VoltAxis,dend1VoltVgat,1)
+	dend2VoltVgatHistY = getHistAxis(dend2VoltAxis,dend2VoltVgat,1)
+	
+	somaVoltOtherHistY = getHistAxis(somaVoltAxis,somaVoltOther,1)
+	dend1VoltOtherHistY = getHistAxis(dend1VoltAxis,dend1VoltOther,1)
+	dend2VoltOtherHistY = getHistAxis(dend2VoltAxis,dend2VoltOther,1)
+
+
+	somaVoltGr.erase()
+	dend1VoltGr.erase()
+	dend2VoltGr.erase()
+print "D"	
+	somaVoltNoneHistY.plot(somaVoltGr,somaVoltHistX,9,1)
+	somaVoltVgatHistY.plot(somaVoltGr,somaVoltHistX,6,1)
+	somaVoltOtherHistY.plot(somaVoltGr,somaVoltHistX,7,1)
+	
+	dend1VoltNoneHistY.plot(dend1VoltGr,dend1VoltHistX,9,1)
+	dend1VoltVgatHistY.plot(dend1VoltGr,dend1VoltHistX,6,1)
+	dend1VoltOtherHistY.plot(dend1VoltGr,dend1VoltHistX,7,1)
+	
+	dend2VoltNoneHistY.plot(dend2VoltGr,dend2VoltHistX,9,1)
+	dend2VoltVgatHistY.plot(dend2VoltGr,dend2VoltHistX,6,1)
+	dend2VoltOtherHistY.plot(dend2VoltGr,dend2VoltHistX,7,1)
+
+print "E"
+	somaVoltGr.size(pl,hs,0,totSims)
+	dend1VoltGr.size(pl,hd1,0,totSims)
+	dend2VoltGr.size(pl,hd2,0,totSims)
+	
+	somaVoltGr.size(pl,hs,0,totSims)
+	dend1VoltGr.size(pl,hd1,0,totSims)
+	dend2VoltGr.size(pl,hd2,0,totSims)
+	
+	somaVoltGr.size(pl,hs,0,totSims)
+	dend1VoltGr.size(pl,hd1,0,totSims)
+	dend2VoltGr.size(pl,hd2,0,totSims)
+print "F"
+}
+
+plotHist(plotLo,plotHiSoma,plotHiDend1,plotHiDend2,nBin)

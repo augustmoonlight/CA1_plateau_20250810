@@ -1,0 +1,53 @@
+// Contains pointers and functions designed to assist with later plotting.
+
+// Define places to inspect voltages.
+numTraces = 7
+objref plotVolts[numTraces]
+soma.sec { plotVolts[0] = new SectionRef() }
+Cell[0].dend[141] { plotVolts[1] = new SectionRef() }
+Cell[0].dend[136] { plotVolts[2] = new SectionRef() }
+Cell[0].dend[123] { plotVolts[3] = new SectionRef() }
+Cell[0].dend[73] { plotVolts[4] = new SectionRef() }
+Cell[0].dend[79] { plotVolts[5] = new SectionRef() }
+Cell[0].dend[84] { plotVolts[6] = new SectionRef() }
+
+// Create a shape graph that shows where everything is.
+objref segPointers[numTraces]
+for ii=0,numTraces-1{
+	plotVolts[ii].sec { 
+		segPointers[ii] = new IClamp(0.5)
+		segPointers[ii].dur = 0
+		segPointers[ii].del = 100000
+		segPointers[ii].amp = 0
+	}
+}
+
+objref plotDendSh
+plotDendSh = new Shape()
+for ii=0,numTraces-1 {
+	plotDendSh.point_mark(segPointers[ii],ii+1,"O",6)
+}
+
+// $o1: Graph object.  Graph to add predefined traces.  Graph object must be
+// created but does not need to be defined as Graph object yet.
+// $s2: String object.  Optional.  First label on graph.
+// $s3: String object.  Optional.  Second label on graph.
+// Returns the index of the graph within the graphList[0] List.
+theLoc = 0 // cannot be declared locally inside function, otherwise does not plot
+func addTracesToGraph() {local ii,theInd
+	$o1 = new Graph()
+	
+	for ii=0,numTraces-1{ 
+		theLoc = ii
+		$o1.addvar("plotVolts[theLoc].sec.v(0.5)",ii+1,1) 
+	}
+	
+	$o1.size(0,tstop,-72,50)
+	$o1.exec_menu("Keep Lines")
+	
+	if(numarg()>1.1){ $o1.label($s2) }
+	if(numarg()>2.1){ $o1.label($s3) }
+	
+	theInd = graphList[0].append($o1)
+	return theInd
+}

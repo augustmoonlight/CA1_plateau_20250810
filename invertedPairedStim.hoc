@@ -1,0 +1,68 @@
+
+// Load an inverted protocol.
+activateInhibition(cellList,-1)
+fbInh = new Vector()
+ffInh = new Vector()
+ffInh = activateInhibition(tuftList,nInhFf,"vgat",1,"sst",1)
+fbInh = activateInhibition(tuftList,nInhFb,"vgat",1,"sst",0)
+
+for ii=0,ffInh.size()-1{
+	nsVgatAt[ffInh.x[ii]].start = inhTuftStart
+}
+for ii=0,fbInh.size()-1{
+	nsVgatAt[fbInh.x[ii]].start = feedbackStart
+}
+
+activateInhibition(ca3List,100000,"npy",1)
+
+objref maxVs
+maxVs = new Vector(numSeg)
+time1 = excCa3Start
+time2 = excCa3Start + 20
+for ii=0,numSeg-1{
+	curV = maxVolt(volts[ii],times,time1,time2)
+	maxVs.x[ii] = curV
+}
+
+
+run()
+
+// Visualise results.
+objref maxVs2
+maxVs2 = new Vector(numSeg)
+
+for ii=0,numSeg-1{
+	curV = maxVolt(volts[ii],times,time1,time2)
+	maxVs2.x[ii] = curV
+}
+curSeg = 0
+forall{
+	for(x) {
+		v1_vmax(x) = maxVs.x[curSeg]
+		curSeg+=1
+	}
+}
+curSeg = 0
+forall{
+	for(x) {
+		v2_vmax(x) = maxVs2.x[curSeg]
+		curSeg+=1
+	}
+}
+
+objref shBox,shGr,shGr2
+shBox = new HBox()
+shBox.intercept(1)
+{
+	shGr = new PlotShape()
+	shGr.exec_menu("Shape Plot")
+	shGr.variable("v1_vmax")
+	shGr.label("VGAT")
+	
+	shGr2 = new PlotShape()
+	shGr2.exec_menu("Shape Plot")
+	shGr2.variable("v2_vmax")
+	shGr2.label("SST")
+}
+shBox.intercept(0)
+shBox.map("Voltages",0,0,600,300)

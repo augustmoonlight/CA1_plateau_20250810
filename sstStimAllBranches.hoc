@@ -1,0 +1,216 @@
+// From Eriks data, it appears that there is a potential for local vs. global
+// integration, depending on the type of inhibition that is present.
+// I want to investigate this in a well-principled way.  Change the number of
+// inputs to the tuft and see what happens...
+
+// Set parameters that may be varied during simulations.
+tstop = 20
+excStart = 5
+inhStart = excStart
+
+nExcTuft = 1000
+nExcCa3 = 0
+nInhFf = 72
+nInhFb = 0
+nInhCa3 = 0
+
+// Load scripts.
+load_file("plotVoltsNpy.hoc")
+load_file("excInhPrep.hoc")
+
+// Set indices of dendrites that will be analysed and recorded from.
+dendInd1 = 178
+dendInd2 = 162 // 162 is  close to tuft bif'n; right apical
+objref stimDend1,stimDend2
+Cell[0].dend[dendInd1] { stimDend1 = new SectionRef() }
+Cell[0].dend[dendInd2] { stimDend2 = new SectionRef() }
+
+// Turn off CVODE; need same temporal axes for summation across different
+// simulations for linear sum.
+// Try starting with variable time step
+
+//cvode.active(0)
+//execute("using_cvode_=0")
+
+// Insert Na channels.
+	newGbarSr = 0.03// enough to send a stable Na spike back into the tuft
+	newGbarSlm = newGbarSr 
+	{
+		initChannels()
+		forsec tuftList {
+			gbar_nax = newGbarSlm
+		}
+		forsec tuftList {
+			gbar_nax = newGbarSr
+		}
+		soma.sec {
+			gbar_nax = gnaSoma
+		}
+	}
+
+		
+// Set up recording devices.
+	objref theXs // x values to record for each branch.
+	theXs = new Vector()
+	theXs.append(0.1)
+	theXs.append(0.5)
+	theXs.append(0.9)
+	
+	objref br1Rec[theXs.size()],br2Rec[theXs.size()]
+	for ii=1,theXs.size(){
+		curX = theXs.x[ii-1]
+	
+		br1Rec[ii-1] = new Vector()
+		br1Rec[ii-1].record(&stimDend1.sec.v(curX))
+		br2Rec[ii-1] = new Vector()
+		br2Rec[ii-1].record(&stimDend2.sec.v(curX))
+	}
+	
+// Set up objects to store values.  Damn this is gross.  Convention:
+//	prefix: one of "sst" or "vgat"
+//	brI: branch to record from (I=1,2)
+//	sI: branch stimulated (I=1,2,12)
+	objref sstBr1S1[theXs.size()],sstBr2S1[theXs.size()]
+	objref vgatBr1S1[theXs.size()],vgatBr2S1[theXs.size()]
+	
+	for ii=1,theXs.size(){
+		sstBr1S1[ii-1] = new Vector()
+		sstBr2S1[ii-1] = new Vector()
+		vgatBr1S1[ii-1] = new Vector()
+		vgatBr2S1[ii-1] = new Vector()
+	}
+	
+	objref sstS1t,vgatS1t
+	sstS1t = new Vector()
+	vgatS1t = new Vector()
+	
+	objref tt
+	tt = new Vector()
+	tt.record(&t)
+	objref tuftInh,tuftExc
+	
+// Simulation 1A: SST-mediated inhibition.
+
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	tuftExc = activateExcitation(tuftList,nExcTuft)
+	tuftInh = activateInhibition(tuftList,nInhFf,"sst",1)
+	
+	for ii=0,tuftExc.size()-1{
+		nsAmpa[tuftExc.x[ii]].start = excStart
+		nsNmda[tuftExc.x[ii]].start = excStart
+	}
+	for ii=0,tuftInh.size()-1{
+		nsVgatAt[tuftInh.x[ii]].start = inhStart
+	}
+	
+	run()
+/*	
+	for ii=1,theXs.size(){
+		sstBr1S1[ii-1].copy(br1Rec[ii-1])
+		sstBr2S1[ii-1].copy(br2Rec[ii-1])
+		sstS1t.copy(tt)
+	}
+	
+// Simulation 1B: VGAT-mediated inhibition.
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	tuftExc = activateExcitation(tuftList,nExcTuft)
+	tuftInh = activateInhibition(tuftList,nInhFf,"vgat",1,"sst",0)
+	
+	for ii=0,tuftExc.size()-1{
+		nsAmpa[tuftExc.x[ii]].start = excStart
+		nsNmda[tuftExc.x[ii]].start = excStart
+	}
+	for ii=0,tuftInh.size()-1{
+		nsVgatAt[tuftInh.x[ii]].start = inhStart
+	}
+	
+	run()
+	
+	for ii=1,theXs.size(){
+		vgatBr1S1[ii-1].copy(br1Rec[ii-1])
+		vgatBr2S1[ii-1].copy(br2Rec[ii-1])
+		vgatS1t.copy(tt)
+	}
+	
+
+// Visualise.
+	objref sstBr1S1Gr,sstBr2S1Gr
+	objref vgatBr1S1Gr,vgatBr2S1Gr
+
+	
+	objref sBox[2], allBox
+	allBox = new VBox()
+	allBox.intercept(1){
+		sBox[0] = new HBox()
+		sBox[0].intercept(1){
+			sstBr1S1Gr = new Graph()
+			sstBr2S1Gr = new Graph()
+		}
+		sBox[0].intercept(0)
+		sBox[0].map("",0,0,600,300)
+		
+		sBox[1] = new HBox()
+		sBox[1].intercept(1){
+			vgatBr1S1Gr = new Graph()
+			vgatBr2S1Gr = new Graph()
+		}
+		sBox[1].intercept(0)
+		sBox[1].map("",0,0,600,300)
+	}	
+	allBox.intercept(0)
+	allBox.map("Comparison",0,0,600,600)
+	
+	for ii=1,theXs.size(){
+		sstBr1S1[ii-1].plot(sstBr1S1Gr,sstS1t,ii+1,1)
+		sstBr2S1[ii-1].plot(sstBr2S1Gr,sstS1t,ii+1,1)
+	}
+	
+	for ii=1,theXs.size(){
+		vgatBr1S1[ii-1].plot(vgatBr1S1Gr,vgatS1t,ii+1,1)
+		vgatBr2S1[ii-1].plot(vgatBr2S1Gr,vgatS1t,ii+1,1)
+	}
+		
+	sstBr1S1Gr.size(120,150,-70,0)
+	sstBr2S1Gr.size(120,150,-70,0)
+	vgatBr1S1Gr.size(120,150,-70,0)
+	vgatBr2S1Gr.size(120,150,-70,0)
+	
+	sstBr1S1Gr.label("SST,Br1")
+	sstBr2S1Gr.label("SST,Br2")
+	vgatBr1S1Gr.label("VGAT,Br1")
+	vgatBr2S1Gr.label("VGAT,Br2")
+	
+
+
+// Visualise stimulation locations.
+	objref fakeCC1[theXs.size()],fakeCC2[theXs.size()]
+	stimDend1.sec {
+		for ii=1,theXs.size(){
+			curX = theXs.x[ii-1]
+			fakeCC1[ii-1] = new IClamp(curX)
+			fakeCC1[ii-1].amp = 0
+			fakeCC1[ii-1].dur = 0
+			fakeCC1[ii-1].del = 10000
+		}
+	}
+	stimDend2.sec {
+		for ii=1,theXs.size(){
+			curX = theXs.x[ii-1]
+			fakeCC2[ii-1] = new IClamp(curX)
+			fakeCC2[ii-1].amp = 0
+			fakeCC2[ii-1].dur = 0
+			fakeCC2[ii-1].del = 10000
+		}
+	}
+	
+	objref stimGr
+	stimGr = new Shape()
+	for ii=1,theXs.size(){
+		stimGr.point_mark(fakeCC1[ii-1],ii+1,"O",6)
+		stimGr.point_mark(fakeCC2[ii-1],ii+1,"O",6)
+	}
+	stimGr.label("Stimulus locations")
+			
+	

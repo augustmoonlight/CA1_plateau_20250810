@@ -1,0 +1,50 @@
+// THIS SCRIPT CHECKS FOR CONSISTENCY BETWEEN THE SIMULATED DATASET AND THE 
+// ACTUAL NUMBER OF SYNAPSES PER BRANCH.
+
+numPar = 0
+numTerm = 0
+forsec allTuft {
+	curSec = new SectionRef()
+	if(isTerminal(curSec)){
+		numTerm += 1
+	}else{
+		numPar += 1
+	}
+}
+
+objref synPar,synTerm
+synPar = new Vector(numPar)
+synTerm = new Vector(numTerm)
+curPar = 0
+curTerm = 0
+
+forsec allTuft {
+	curSec = new SectionRef()
+	if(isTerminal(curSec)){
+		dauSa.mul(0)
+		for(x,0){
+			dauSa.x[int(x*dauDiv)] = dauSa.x[int(x*dauDiv)] + area(x)
+		}
+		
+		dauSa.mul(dauDen) // multiple SA by density.
+		dauSa.floor()
+		addlSyn = int(dauSa.sum())
+		
+		synTerm.x[curTerm] = addlSyn
+		curTerm+=1
+	}else{
+		// Calc SA.
+		neurSa = 0
+		for(x,0){
+			neurSa += area(x)
+		}
+		addlSyn = int(neurSa*parDen)
+		
+		synPar.x[curPar] = addlSyn
+		curPar+=1
+	}
+}
+
+print "Number of parent branch synapses: ", synPar.mean(),"+/-",synPar.stdev()
+print "Number of terminal branch synapses: ",synTerm.mean(),"+/-",synTerm.stdev()
+

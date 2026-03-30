@@ -1,0 +1,83 @@
+// This script checks for consistency between the NPY synapses distributed
+// and the real experimental data.
+
+//  Currently have implemented only terminal branches.
+
+	// count number of effective oblique branches.
+	numObl = 0
+	
+	for nn=1,numEffBr {
+		hasIncremented = 0
+		forsec brEff[nn-1] {
+			if(L_eff>Lthres){
+				if(isObl_id){
+					if(isTerm_id){
+						if(hasIncremented<0.1){
+							numObl += 1
+							hasIncremented=1
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	
+	// for each effective branch, plot number of inputs per um2 against
+	// the distance from soma.  By the way mainbif is defined, dist will
+	// be a constant value for a given effective branch.
+	objref oblDists
+	objref oblVgat,oblNpy
+	objref oblSa
+	oblDists = new Vector(numObl)
+	oblVgat = new Vector(numObl)
+	oblNpy = new Vector(numObl)
+	oblSa = new Vector(numObl)
+	curObl = -1
+	for nn=1,numEffBr {
+		hasIncremented = 0
+		forsec brEff[nn-1] {
+			if(L_eff>Lthres){
+				if(isObl_id){
+					if(isTerm_id){
+						if(hasIncremented<0.1){
+							hasIncremented=1
+							curObl += 1
+							oblDists.x[curObl] = mainbif_dists
+							for(x,0){
+								oblSa.x[curObl] += area(x)
+								oblVgat.x[curObl] += vgatAt_syns(x)
+								oblNpy.x[curObl] += npyAt_syns(x)
+							}
+						}else{
+							for(x,0){
+								oblSa.x[curObl] += area(x)
+								oblVgat.x[curObl] += vgatAt_syns(x)
+								oblNpy.x[curObl] += npyAt_syns(x)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	objref oblVgatSa
+	oblVgatSa = new Vector()
+	oblVgatSa.copy(oblVgat)
+	oblVgatSa.div(oblSa)
+	
+	objref oblNpySa
+	oblNpySa = new Vector()
+	oblNpySa.copy(oblNpy)
+	oblNpySa.div(oblSa)
+	
+	// plot
+	objref vgatNpyGr
+	vgatNpyGr = new Graph()
+	oblVgatSa.mark(vgatNpyGr,oblDists,"O",6,3)
+	oblNpySa.mark(vgatNpyGr,oblDists,"O",6,4)
+	vgatNpyGr.size(0,200,0,0.04)
+	vgatNpyGr.label("Vgat (green) and NPY (blue) inputs as a fxn of bif dist")
+
+

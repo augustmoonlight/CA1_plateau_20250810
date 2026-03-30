@@ -1,0 +1,12 @@
+// CHECK FOR CONSISTENCY BETWEEN THE SYNAPSES AS PLACED AND THE ASSOCIATED 
+// SURFACE AREAS; IE, ANALYSE DATA EXACTLY AS IT WOULD BE TREATED IN ARRAY
+// TOMOGRAPHY.
+
+// Distribute synapses.
+
+
+// Load up individual files.
+load_file("checkTuftSst.hoc")
+load_file("checkNpy.hoc")
+load_file("checkTuftVgat.hoc")
+load_file("checkApicalTrunk.hoc")

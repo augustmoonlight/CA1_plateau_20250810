@@ -1,0 +1,194 @@
+// SET UP SHUNT LEVEL SIMULATIONS.
+
+// Define the tree to compute SL.
+objref slList
+slList = new SectionList()
+forall {
+	slList.append()
+}
+
+// Define recording objects.
+objref dendRecord,timeRecord
+dendRecord = new Vector() // only need one, as current input occurs at one site.
+timeRecord = new Vector()
+timeRecord.record(&t)
+
+
+// Calculate the total number of segments that will be recorded from
+slSeg = 0
+forsec slList {
+	for (x,0){
+		slSeg += 1
+	}
+}
+print "The total number of segments for SL calculations is ", slSeg // this is the total number of recordings.
+
+// Set up objects that will storage features of the voltage deflections
+// for the subsequent shunt level calculations.
+objref dvBase,dvInh,vBase,vBase2
+dvBase = new Vector(slSeg) // voltage without inhibition
+dvInh = new Vector(slSeg) // voltage with inhibition
+vBase = new Vector(slSeg) // baseline voltage before first current step
+vBase2 = new Vector(slSeg) // baseline votlage before second current step
+objref dvSecs[slSeg] // track sections
+objref dvSegs // track sections
+dvSegs = new Vector(slSeg)
+
+// Populate the sections and segments to be accessed.
+curSeg = 0
+forsec slList {
+	for (x,0) {
+		dvSecs[curSeg] = new SectionRef()
+		dvSegs.x[curSeg] = x
+		curSeg+=1
+	}
+}
+
+// Insert shunt level tracker.
+forall {
+	insert sl
+}
+
+//// Visualise responses.  Shut off later.
+//objref voltGraph
+//voltGraph = new Graph()
+//voltGraph.addvar("dendTarget.sec.v(0.5)",1,1)
+//graphList[0].append(voltGraph)
+//voltGraph.exec_menu("Keep Lines")
+
+// Define parameters inherent to simulation.
+ccStart1 = 110
+inhStart = 310
+ccStart2 = 410
+ccDur = 100
+ccAmp = 0.01
+tstop = ccStart2 + ccDur
+inhTau1 = 0.1 // superfast
+inhTau2 = 100000 // superslow
+
+
+
+
+// Add inhibition.  For now, just do NPY AT data.
+// Change timescales to be very slow.
+activateOnly("npyAt")
+for ii=1,totalNpyAtAdded{
+	e2sNpyAt[ii-1].tau1 = 0.1
+	e2sNpyAt[ii-1].tau2 = 10000
+	nsNpyAt[ii-1].start = inhStart
+}
+
+
+
+// Now that we have proxies for the section and segment accessed on each loop,
+// use this to drive SL calculations.
+objref cc1,cc2 // current clamps
+curSeg=0
+
+for curSeg=0,slSeg-1{
+	dvSecs[curSeg].sec {
+		curSec = new SectionRef()
+	}
+	
+
+	tempX = dvSegs.x[curSeg]
+
+	dendRecord.record(&curSec.sec.v(x))
+	curSec.sec { 
+		print "Running section ",secname()," segment ",tempX 
+		print "This is segment ",curSeg+1," / ",slSeg	
+	}
+	
+	
+	// Set up current clamps.
+	curSec.sec { cc1 = new IClamp(tempX) }
+	cc1.dur = ccDur
+	cc1.amp = ccAmp
+	cc1.del = ccStart1
+	
+	curSec.sec { cc2 = new IClamp(tempX) }
+	cc2.dur = ccDur
+	cc2.amp = ccAmp
+	cc2.del = ccStart2
+	
+	// run
+	initChannels()
+	run()
+	
+	// assign voltage values.
+	t1Start = timeRecord.indwhere(">=",cc1.del)
+	t1Stop = timeRecord.indwhere(">=",(cc1.del+cc1.dur))
+	t2Start = timeRecord.indwhere(">=",cc2.del)
+	t2Stop = timeRecord.indwhere(">=",(cc2.del+cc2.dur))
+		
+	vBase.x[curSeg] = dendRecord.x[t1Start]
+	dvBase.x[curSeg] = dendRecord.x[t1Stop]
+	vBase2.x[curSeg] = dendRecord.x[t2Start]
+	dvInh.x[curSeg] = dendRecord.x[t2Stop]	
+
+}
+dvBase.sub(vBase)
+dvInh.sub(vBase2)
+
+// Assign shunt level and visualise.
+for curSeg=0,slSeg-1{
+
+	dvSecs[curSeg].sec {
+		curSec = new SectionRef()
+	}
+	tempX = dvSegs.x[curSeg]
+	
+	curSec.sec {
+		num = dvBase.x[curSeg] - dvInh.x[curSeg]
+		den = dvBase.x[curSeg]
+		sl_sl(tempX) = num/den
+	}
+}
+
+
+// View the shunt level values.
+objref slPlot
+		slPlot = new PlotShape()
+		slPlot.variable("sl_sl")
+		slPlot.exec_menu("Shape Plot")
+		slPlot.scale(0,0.1)
+	
+// Plot results in slightly different way.
+objref allDists,allSls
+numAll = 0
+forall {
+	for (x,0) {
+		numAll+=1
+	}
+}
+
+soma.sec {distance()}
+
+allDists = new Vector(numAll)
+allSls = new Vector(numAll)
+numAll = 0
+objref strobj
+strobj = new StringFunctions()
+forall {
+	curSec = new SectionRef()
+	for (x,0) {
+		allDists.x[numAll] = distance(x)
+		allSls.x[numAll] = sl_sl(x)
+		
+		// Flip sign if compartment is not part of the apical tree; ie is a
+		// basal dendrite
+		isBasal = sectionRefInList(curSec,basalList)
+		if(isBasal>0.1){
+			allDists.x[numAll] = allDists.x[numAll]*-1
+		}
+		
+		numAll+=1
+	}
+	
+
+	
+}
+objref distPlot
+distPlot = new Graph()
+allSls.mark(distPlot,allDists,"o",2)
+distPlot.exec_menu("View = plot")

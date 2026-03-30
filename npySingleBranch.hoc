@@ -1,0 +1,436 @@
+// This script is designed to implement NPY-mediated input.
+
+// Set parameters.
+tstop = 300
+newGbarSr = 0.03// enough to send a stable Na spike back into the tuft
+newGbarSlm = newGbarSr 
+synWeight = 0.00018*1.5
+
+excStart = 125
+
+nExcUseTuft = 0
+nExcUseCa3 = 0
+nInhFf = 0
+nInhFb = 0
+nInhCa3 = 100
+
+dendInd1 = 144
+
+load_file("plotVoltsNpy.hoc")
+load_file("excInhPrep.hoc")
+
+// Define timing.
+tStart = 100
+tDel = 20 // delay between PP and SC input; tDel > 0 means PP leads SC
+
+// INSERT SOME NA ALREADY
+{
+	initChannels()
+	forsec tuftList {
+		gbar_nax = newGbarSlm
+	}
+	forsec ca3List {
+		gbar_nax = newGbarSr
+	}
+	soma.sec {
+		gbar_nax = gnaSoma
+	}
+}
+
+// Add in synapses along branch.
+objref stimDend1,stimDend2
+Cell[0].dend[dendInd1] { stimDend1 = new SectionRef() }
+theSeg = 0
+stimDend1.sec {for(x,0){theSeg+=1}}
+
+nExcBr1 = theSeg 
+theSeg = 0
+objref nsAmpaBr1[nExcBr1],ncAmpaBr1[nExcBr1],synAmpaBr1[nExcBr1]
+objref nsNmdaBr1[nExcBr1],ncNmdaBr1[nExcBr1],synNmdaBr1[nExcBr1]
+stimDend1.sec {
+	for(x,0){
+		synAmpaBr1[theSeg] = new excSyn(x)
+		synAmpaBr1[theSeg].xEff = x_eff(x)
+		nsAmpaBr1[theSeg] = new NetStim(x)
+		ncAmpaBr1[theSeg] = new NetCon(nsAmpaBr1[theSeg],synAmpaBr1[theSeg])
+
+		synNmdaBr1[theSeg] = new Exp2SynNmda(x)
+		nsNmdaBr1[theSeg] = new NetStim(x)
+		ncNmdaBr1[theSeg] = new NetCon(nsNmdaBr1[theSeg],synNmdaBr1[theSeg])
+		theSeg+=1
+	}
+}
+
+for ii=1,nExcBr1 {
+
+	synAmpaBr1[ii-1].tau1= 0.2  // Jarsky et al., 2005
+	synAmpaBr1[ii-1].tau2 = 2 // Jarsky et al., 2005
+	synAmpaBr1[ii-1].e = 0
+	synAmpaBr1[ii-1].isOn=1
+	
+	
+	nsAmpaBr1[ii-1].interval = 0
+	nsAmpaBr1[ii-1].number = 1
+	nsAmpaBr1[ii-1].start = excStart
+	nsAmpaBr1[ii-1].noise = 0
+	ncAmpaBr1[ii-1].weight = synWeight // 0.18 nS; from Jarsky et al 2005
+	ncAmpaBr1[ii-1].delay = 0
+	
+	synNmdaBr1[ii-1].tau1= 5  
+	synNmdaBr1[ii-1].tau2 = 100 
+	synNmdaBr1[ii-1].e = 0
+	synNmdaBr1[ii-1].isOn=1
+	
+	
+	nsNmdaBr1[ii-1].interval = 0
+	nsNmdaBr1[ii-1].number = 1
+	nsNmdaBr1[ii-1].start = excStart
+	nsNmdaBr1[ii-1].noise = 0
+	ncNmdaBr1[ii-1].weight = synWeight
+	ncNmdaBr1[ii-1].delay = 0
+
+
+}
+
+Cell[0].dend[143] { stimDend2 = new SectionRef() }
+theSeg = 0
+stimDend2.sec {for(x,0){theSeg+=1}}
+
+nExcBr2 = theSeg 
+theSeg = 0
+objref nsAmpaBr2[nExcBr2],ncAmpaBr2[nExcBr2],synAmpaBr2[nExcBr2]
+objref nsNmdaBr2[nExcBr2],ncNmdaBr2[nExcBr2],synNmdaBr2[nExcBr2]
+stimDend2.sec {
+	for(x,0){
+		synAmpaBr2[theSeg] = new excSyn(x)
+		synAmpaBr2[theSeg].xEff = x_eff(x)
+		nsAmpaBr2[theSeg] = new NetStim(x)
+		ncAmpaBr2[theSeg] = new NetCon(nsAmpaBr2[theSeg],synAmpaBr2[theSeg])
+
+		synNmdaBr2[theSeg] = new Exp2SynNmda(x)
+		nsNmdaBr2[theSeg] = new NetStim(x)
+		ncNmdaBr2[theSeg] = new NetCon(nsNmdaBr2[theSeg],synNmdaBr2[theSeg])
+		theSeg+=1
+	}
+}
+
+for ii=1,nExcBr2 {
+
+	synAmpaBr2[ii-1].tau1= 0.2  // Jarsky et al., 2005
+	synAmpaBr2[ii-1].tau2 = 2 // Jarsky et al., 2005
+	synAmpaBr2[ii-1].e = 0
+	synAmpaBr2[ii-1].isOn=1
+	
+	
+	nsAmpaBr2[ii-1].interval = 0
+	nsAmpaBr2[ii-1].number = 1
+	nsAmpaBr2[ii-1].start = excStart
+	nsAmpaBr2[ii-1].noise = 0
+	ncAmpaBr2[ii-1].weight = synWeight // 0.18 nS; from Jarsky et al 2005
+	ncAmpaBr2[ii-1].delay = 0
+	
+	synNmdaBr2[ii-1].tau1= 5  
+	synNmdaBr2[ii-1].tau2 = 100 
+	synNmdaBr2[ii-1].e = 0
+	synNmdaBr2[ii-1].isOn=1
+	
+	
+	nsNmdaBr2[ii-1].interval = 0
+	nsNmdaBr2[ii-1].number = 1
+	nsNmdaBr2[ii-1].start = excStart
+	nsNmdaBr2[ii-1].noise = 0
+	ncNmdaBr2[ii-1].weight = synWeight
+	ncNmdaBr2[ii-1].delay = 0
+
+
+}
+						
+
+// stim branch one; look at responses in branch 1 and 2 for NPY and VGAT
+objref s1br1NpyGr
+s1br1NpyGr = new Graph()
+s1br1NpyGr.addvar("stimDend1.sec.v(0.9)",3,1)
+s1br1NpyGr.addvar("stimDend1.sec.v(0.5)",2,1)
+s1br1NpyGr.addvar("stimDend1.sec.v(0.1)",4,1)
+s1br1NpyGr.exec_menu("Keep Lines")
+s1br1NpyGr.label("NPY")
+s1br1NpyGr.label("Stim 1")
+s1br1NpyGr.size(120,150,-70,0)
+
+objref s1br1VgatGr
+s1br1VgatGr = new Graph()
+s1br1VgatGr.addvar("stimDend1.sec.v(0.9)",3,1)
+s1br1VgatGr.addvar("stimDend1.sec.v(0.5)",2,1)
+s1br1VgatGr.addvar("stimDend1.sec.v(0.1)",4,1)
+s1br1VgatGr.exec_menu("Keep Lines")
+s1br1VgatGr.label("VGAT")
+s1br1VgatGr.label("Stim 1")
+s1br1VgatGr.size(120,150,-70,0)
+
+objref s1br2NpyGr
+s1br2NpyGr = new Graph()
+s1br2NpyGr.addvar("stimDend2.sec.v(0.9)",3,1)
+s1br2NpyGr.addvar("stimDend2.sec.v(0.5)",2,1)
+s1br2NpyGr.addvar("stimDend2.sec.v(0.1)",4,1)
+s1br2NpyGr.exec_menu("Keep Lines")
+s1br2NpyGr.label("NPY")
+s1br2NpyGr.label("Stim 1")
+s1br2NpyGr.size(120,150,-70,0)
+
+objref s1br2VgatGr
+s1br2VgatGr = new Graph()
+s1br2VgatGr.addvar("stimDend2.sec.v(0.9)",3,1)
+s1br2VgatGr.addvar("stimDend2.sec.v(0.5)",2,1)
+s1br2VgatGr.addvar("stimDend2.sec.v(0.1)",4,1)
+s1br2VgatGr.exec_menu("Keep Lines")
+s1br2VgatGr.label("VGAT")
+s1br2VgatGr.label("Stim 1")
+s1br2VgatGr.size(120,150,-70,0)
+
+
+// stim branch two; look at responses in branch 1 and 2 for NPY and VGAT
+objref s2br1NpyGr
+s2br1NpyGr = new Graph()
+s2br1NpyGr.addvar("stimDend1.sec.v(0.9)",3,1)
+s2br1NpyGr.addvar("stimDend1.sec.v(0.5)",2,1)
+s2br1NpyGr.addvar("stimDend1.sec.v(0.1)",4,1)
+s2br1NpyGr.exec_menu("Keep Lines")
+s2br1NpyGr.label("NPY")
+s2br1NpyGr.label("Stim 2")
+s2br1NpyGr.size(120,150,-70,0)
+
+objref s2br1VgatGr
+s2br1VgatGr = new Graph()
+s2br1VgatGr.addvar("stimDend1.sec.v(0.9)",3,1)
+s2br1VgatGr.addvar("stimDend1.sec.v(0.5)",2,1)
+s2br1VgatGr.addvar("stimDend1.sec.v(0.1)",4,1)
+s2br1VgatGr.exec_menu("Keep Lines")
+s2br1VgatGr.label("VGAT")
+s2br1VgatGr.label("Stim 2")
+s2br1VgatGr.size(120,150,-70,0)
+
+objref s2br2NpyGr
+s2br2NpyGr = new Graph()
+s2br2NpyGr.addvar("stimDend2.sec.v(0.9)",3,1)
+s2br2NpyGr.addvar("stimDend2.sec.v(0.5)",2,1)
+s2br2NpyGr.addvar("stimDend2.sec.v(0.1)",4,1)
+s2br2NpyGr.exec_menu("Keep Lines")
+s2br2NpyGr.label("NPY")
+s2br2NpyGr.label("Stim 2")
+s2br2NpyGr.size(120,150,-70,0)
+
+objref s2br2VgatGr
+s2br2VgatGr = new Graph()
+s2br2VgatGr.addvar("stimDend2.sec.v(0.9)",3,1)
+s2br2VgatGr.addvar("stimDend2.sec.v(0.5)",2,1)
+s2br2VgatGr.addvar("stimDend2.sec.v(0.1)",4,1)
+s2br2VgatGr.exec_menu("Keep Lines")
+s2br2VgatGr.label("VGAT")
+s2br2VgatGr.label("Stim 2")
+s2br2VgatGr.size(120,150,-70,0)
+
+// stim branches one and two; look at responses in branch 1 and 2 for NPY and VGAT
+objref s12br1NpyGr
+s12br1NpyGr = new Graph()
+s12br1NpyGr.addvar("stimDend1.sec.v(0.9)",3,1)
+s12br1NpyGr.addvar("stimDend1.sec.v(0.5)",2,1)
+s12br1NpyGr.addvar("stimDend1.sec.v(0.1)",4,1)
+s12br1NpyGr.exec_menu("Keep Lines")
+s12br1NpyGr.label("NPY")
+s12br1NpyGr.label("Stim 1,2")
+s12br1NpyGr.size(120,150,-70,0)
+
+objref s12br1VgatGr
+s12br1VgatGr = new Graph()
+s12br1VgatGr.addvar("stimDend1.sec.v(0.9)",3,1)
+s12br1VgatGr.addvar("stimDend1.sec.v(0.5)",2,1)
+s12br1VgatGr.addvar("stimDend1.sec.v(0.1)",4,1)
+s12br1VgatGr.exec_menu("Keep Lines")
+s12br1VgatGr.label("VGAT")
+s12br1VgatGr.label("Stim 1,2")
+s12br1VgatGr.size(120,150,-70,0)
+
+objref s12br2NpyGr
+s12br2NpyGr = new Graph()
+s12br2NpyGr.addvar("stimDend2.sec.v(0.9)",3,1)
+s12br2NpyGr.addvar("stimDend2.sec.v(0.5)",2,1)
+s12br2NpyGr.addvar("stimDend2.sec.v(0.1)",4,1)
+s12br2NpyGr.exec_menu("Keep Lines")
+s12br2NpyGr.label("NPY")
+s12br2NpyGr.label("Stim 1,2")
+s12br2NpyGr.size(120,150,-70,0)
+
+objref s12br2VgatGr
+s12br2VgatGr = new Graph()
+s12br2VgatGr.addvar("stimDend2.sec.v(0.9)",3,1)
+s12br2VgatGr.addvar("stimDend2.sec.v(0.5)",2,1)
+s12br2VgatGr.addvar("stimDend2.sec.v(0.1)",4,1)
+s12br2VgatGr.exec_menu("Keep Lines")
+s12br2VgatGr.label("VGAT")
+s12br2VgatGr.label("Stim 1,2")
+s12br2VgatGr.size(120,150,-70,0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+objref br12NpyGr
+br12NpyGr = new Graph()
+br12NpyGr.addvar("stimDend2.sec.v(0.9)",3,1)
+br12NpyGr.addvar("stimDend2.sec.v(0.5)",2,1)
+br12NpyGr.addvar("stimDend2.sec.v(0.1)",4,1)
+br12NpyGr.exec_menu("Keep Lines")
+br12NpyGr.size(120,150,-70,0)
+graphList[0].append(br12NpyGr)
+
+objref br12VgatGr
+br12VgatGr = new Graph()
+br12VgatGr.addvar("stimDend2.sec.v(0.9)",3,1)
+br12VgatGr.addvar("stimDend2.sec.v(0.5)",2,1)
+br12VgatGr.addvar("stimDend2.sec.v(0.1)",4,1)
+br12VgatGr.exec_menu("Keep Lines")
+br12VgatGr.size(120,150,-70,-60)
+graphList[0].append(br12VgatGr)
+*/
+
+objref ca3Inh
+
+//// Simulation 1: no inhibition.
+//	activateInhibition(cellList,-1)
+//	activateExcitation(cellList,-1)
+//	run()
+
+// Simulation 1: stimulate branch 1
+	for ii=1,nExcBr1 { 
+		synAmpaBr1[ii-1].isOn=1
+		synNmdaBr1[ii-1].isOn=1
+	}
+	for ii=1,nExcBr2 { 
+		synAmpaBr2[ii-1].isOn=0
+		synNmdaBr2[ii-1].isOn=0
+	}
+	
+// Simulation 1A: NPY-mediated inhibition on branch 1
+	
+	graphList[1].append(s1br1NpyGr)
+	graphList[1].append(s1br2NpyGr)
+
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	ca3Inh = activateInhibition(ca3List,nInhCa3,"npy",1)
+	for ii=0,ca3Inh.size()-1{
+		nsVgatAt[ca3Inh.x[ii]].start = 125
+	}
+	
+	run()
+	graphList[1].remove_all()
+	
+// Simulation 1B: VGAT-mediated inhibition on branch 1
+	graphList[1].append(s1br1VgatGr)
+	graphList[1].append(s1br2VgatGr)
+
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	ca3Inh = activateInhibition(ca3List,nInhCa3,"vgat",1,"npy",0)
+	for ii=0,ca3Inh.size()-1{
+		nsVgatAt[ca3Inh.x[ii]].start = 125
+	}
+	run()
+	graphList[1].remove_all()
+	
+// Simulation 2: stimulate branch 2
+	for ii=1,nExcBr1 { 
+		synAmpaBr1[ii-1].isOn=0
+		synNmdaBr1[ii-1].isOn=0
+	}
+	for ii=1,nExcBr2 { 
+		synAmpaBr2[ii-1].isOn=1
+		synNmdaBr2[ii-1].isOn=1
+	}
+	
+// Simulation 2A: NPY-mediated inhibition on branch 1
+	graphList[1].append(s2br1NpyGr)
+	graphList[1].append(s2br2NpyGr)
+
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	ca3Inh = activateInhibition(ca3List,nInhCa3,"npy",1)
+	for ii=0,ca3Inh.size()-1{
+		nsVgatAt[ca3Inh.x[ii]].start = 125
+	}
+	
+	run()
+	graphList[1].remove_all()
+	
+// Simulation 2B: VGAT-mediated inhibition on branch 1
+	graphList[1].append(s2br1VgatGr)
+	graphList[1].append(s2br2VgatGr)
+
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	ca3Inh = activateInhibition(ca3List,nInhCa3,"vgat",1,"npy",0)
+	for ii=0,ca3Inh.size()-1{
+		nsVgatAt[ca3Inh.x[ii]].start = 125
+	}
+	run()
+	graphList[1].remove_all()
+	
+// Simulation 3: stimulate branches 1 and 2
+	for ii=1,nExcBr1 { 
+		synAmpaBr1[ii-1].isOn=1
+		synNmdaBr1[ii-1].isOn=1
+	}
+	for ii=1,nExcBr2 { 
+		synAmpaBr2[ii-1].isOn=1
+		synNmdaBr2[ii-1].isOn=1
+	}
+	
+// Simulation 3A: NPY-mediated inhibition on branch 1 and 2
+	graphList[1].append(s12br1NpyGr)
+	graphList[1].append(s12br2NpyGr)
+
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	ca3Inh = activateInhibition(ca3List,nInhCa3,"npy",1)
+	for ii=0,ca3Inh.size()-1{
+		nsVgatAt[ca3Inh.x[ii]].start = 125
+	}
+	
+	run()
+	graphList[1].remove_all()
+	
+// Simulation 3B: VGAT-mediated inhibition on branch 1 and 2
+	graphList[1].append(s12br1VgatGr)
+	graphList[1].append(s12br2VgatGr)
+
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	ca3Inh = activateInhibition(ca3List,nInhCa3,"vgat",1,"npy",0)
+	for ii=0,ca3Inh.size()-1{
+		nsVgatAt[ca3Inh.x[ii]].start = 125
+	}
+	run()
+	graphList[1].remove_all()
+	
+
+/*
+graphList[1].append(s2br1NpyGr)
+graphList[2].append(s2br1VgatGr)
+graphList[1].append(s2br2NpyGr)
+graphList[2].append(s2br2VgatGr)
+graphList[1].append(s12br1NpyGr)
+graphList[2].append(s12br1VgatGr)
+graphList[1].append(s12br2NpyGr)
+graphList[2].append(s12br2VgatGr)
+*/

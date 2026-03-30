@@ -1,0 +1,78 @@
+// A simulation that modifies the occurrence of excitation and inhibition
+// across PP and SC inputs.
+// $1: number of excitatory tuft synapses to activate.
+// $2: number of excitatory CA3 synapses to activate.
+// $3: number of inhibitory tuft synapses to activate.
+// $4: number of inhibitory CA3 synapses to activate.
+// $5: number of inhibitory tuft feedback synapses to activate.
+// $6: optional.  Binary switch: flip SST+ and SST- tuft synapses (useful for
+// 	investigating spatial placement of two types of synapses).  Default = 0;
+//	ie no switch.  If =1, then SST synapses are activated as FF inputs
+//	and VGAT are activated as FB inputs.
+
+proc excInhPrep() {localobj ecExc,ca3Exc,ecInh,ca3Inh,ecFb
+
+	// First, shut off all synapses.
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	
+	// Create vectors for indices for synapses that will be activated.
+	ecExc = new Vector()
+	ca3Exc = new Vector()
+	ecInh = new Vector()
+	ca3Inh = new Vector()
+	ecFb = new Vector()
+	
+
+	// Activate excitation.
+	ecExc = activateExcitation(tuftList,$1)
+	ca3Exc = activateExcitation(ca3List,$2)
+	
+	// Identify whether VGAT synapses will be physiological ($6 default
+	// or = 0) or inverted ($6=1) w.r.t. timing relative to SST.
+	if(numarg()>5.1){
+		if($6>0.1){
+			sstFb = 0
+			sstFf = 1
+		}else{
+			sstFb = 1
+			sstFf = 0
+		}
+	}else{
+		sstFb = 1
+		sstFf = 0
+	}
+	
+	// Activate inhibition.
+	ecInh = activateInhibition(tuftList,$3,"vgat",1,"sst",sstFf)
+	ca3Inh = activateInhibition(ca3List,$4,"npy",1)
+	
+	ecFb = activateInhibition(tuftList,$5,"vgat",1,"sst",sstFb)
+	
+	// Set timing of synapses.
+	for ii=0,ecExc.size()-1{
+		nsAmpa[ecExc.x[ii]].start = tStart
+		nsNmda[ecExc.x[ii]].start = tStart
+	}
+	
+	for ii=0,ca3Exc.size()-1{
+		nsAmpa[ca3Exc.x[ii]].start = tStart + tDel
+		nsNmda[ca3Exc.x[ii]].start = tStart + tDel
+	}
+	
+	for ii=0,ecInh.size()-1{
+		nsVgatAt[ecInh.x[ii]].start = tStart+5 // +5 for synaptic delay
+	}
+	
+	for ii=0,ca3Inh.size()-1{
+		nsVgatAt[ca3Inh.x[ii]].start = tStart + tDel + 5 // +5 for synaptic delay
+	}
+
+//	for ii=0,ca3Inh.size()-1{
+//		synVgatAt[ca3Inh.x[ii]].e = -80 // +5 for synaptic delay
+//	}
+	
+	for ii=0,ecFb.size()-1{
+		nsVgatAt[ecFb.x[ii]].start = tStart + tDel + 10 // +10 for synaptic delay
+	}
+}

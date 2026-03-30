@@ -1,0 +1,18 @@
+// This does paired PP-SC inputs with feedback from the tuft.
+
+// Create graph.
+objref ppFbGr
+strdef lab1,lab2
+lab1 = "PP + FB"
+lab2 = "Inh + exc + FB"
+toRem = addTracesToGraph(ppFbGr,lab1,lab2)
+
+// Prep synapses.
+excInhPrep(nExcUseTuft,0,nInhFf,0,nInhFb,0)
+
+// Run
+run()
+
+// Prep for next run.
+graphList[0].remove(toRem-1)
+

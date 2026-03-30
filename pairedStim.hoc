@@ -1,0 +1,29 @@
+// This does a paired stimulus SC-PP stimulus.
+
+// First, shut off all synapses.
+activateInhibition(cellList,-1)
+activateExcitation(cellList,-1)
+
+
+
+// Next, activate tuft synapses.
+activateExcitation(tuftList,nExcUseTuft)
+activateExcitation(ca3List,nExcUseCa3)
+
+objref fbInh,ffInh
+fbInh = new Vector()
+ffInh = new Vector()
+ffInh = activateInhibition(tuftList,nInhFf,"vgat",1,"sst",0)
+fbInh = activateInhibition(tuftList,nInhFb,"vgat",1,"sst",1)
+
+for ii=0,ffInh.size()-1{
+	nsVgatAt[ffInh.x[ii]].start = inhTuftStart
+}
+for ii=0,fbInh.size()-1{
+	nsVgatAt[fbInh.x[ii]].start = feedbackStart
+}
+activateInhibition(ca3List,100000,"npy",1)
+
+// Run
+run()
+

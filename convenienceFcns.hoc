@@ -1,0 +1,22 @@
+
+
+// This helper function returns whether a given branch is terminal.
+
+// INPUT : a SectionRef instance; e.g.,
+//	objref foo
+//	somaA foo = new SectionRef()
+//	isTerminal(foo) // returns 0
+//
+// OUTPUT : returns 1 if a terminal branch (ie no children) or 0 (ie has 
+//	children)
+func isTerminal() {local nc,theOut
+	nc = $o1.nchild
+	if(nc>0.1){
+		theOut = 0
+	}else{
+		theOut = 1
+	}
+	return theOut
+}
+
+

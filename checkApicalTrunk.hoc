@@ -1,0 +1,69 @@
+// Check our statistics for all sections in apical trunk.
+trunkDiv = 3 // AT analysis divided into quadrants
+
+// Create objects to store values.
+// Note that each of these will just have a single entry, consistent with 
+// how Erik extracted his statistics; I'm leaving them as degenerate vectors
+// with a single entry because we may want to extend this later.
+objref trunkVgat[trunkDiv],trunkNpy[trunkDiv],trunkSa[trunkDiv],trunkL[trunkDiv]
+for ii=1,trunkDiv{
+	trunkVgat[ii-1] = new Vector(1)
+	trunkNpy[ii-1] = new Vector(1)
+	trunkSa[ii-1] = new Vector(1)
+	trunkL[ii-1] = new Vector(1)
+}
+
+// Determine max distance of primary apical.
+maxDist = 0
+soma.sec() {distance()}
+forsec primList {
+	curDist = distance(1)
+	if(curDist>maxDist){maxDist=curDist}
+}	
+
+// Iterate over trunk; append values for vectors as necessary.
+soma.sec {
+	for (x,0) {
+		if(x>0.4){
+			curDist = distance(x)
+			curBin = int((curDist/maxDist)*trunkDiv)
+			
+			curL = L/nseg
+			curSa = area(x)
+			curVgat = vgatAt_syns(x)
+			curNpy = npyAt_syns(x)
+	
+			trunkVgat[curBin].x[0] += curVgat
+			trunkNpy[curBin].x[0] += curNpy
+			trunkSa[curBin].x[0] += curSa
+			trunkL[curBin].x[0] += curL
+		}
+	}
+}
+	
+forsec primList{
+	for (x,0) {
+		curDist = distance(x)
+		curBin = int((curDist/maxDist)*trunkDiv)
+		
+		curL = L/nseg
+		curSa = area(x)
+		curVgat = vgatAt_syns(x)
+		curNpy = npyAt_syns(x)
+
+		trunkVgat[curBin].x[0] += curVgat
+		trunkNpy[curBin].x[0] += curNpy
+		trunkSa[curBin].x[0] += curSa
+		trunkL[curBin].x[0] += curL
+	}
+	
+}
+
+// Normalise and print output.
+print "For first third of apical trunk:"
+print "\tThe VGAT density is ",trunkVgat[0].x[0]/trunkSa[0].x[0]," synapses/um2"
+print "\tThe NPY density is ",trunkNpy[0].x[0]/trunkSa[0].x[0]," synapses/um2"
+print "For last third of apical trunk:"
+print "\tThe VGAT density is ",trunkVgat[2].x[0]/trunkSa[2].x[0]," synapses/um2"
+print "\tThe NPY density is ",trunkNpy[2].x[0]/trunkSa[2].x[0]," synapses/um2"
+

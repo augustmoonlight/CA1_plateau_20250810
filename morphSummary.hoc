@@ -1,0 +1,77 @@
+// Bloss wanted a summary of morphological properties (surface area and length)
+// for different dendritic domains (see email 071415).  Obtain this.
+tuftTermSa = 0
+tuftIntSa = 0
+oblTermSa = 0
+oblIntSa = 0
+trunkSa = 0
+basPrimSa = 0
+basIntSa = 0
+basTermSa = 0
+
+tuftTermL = 0
+tuftIntL = 0
+oblTermL = 0
+oblIntL = 0
+trunkL = 0
+basPrimL = 0
+basIntL = 0
+basTermL = 0
+
+forsec tuftList{
+	if(isTerm_id){
+		for(x){	tuftTermSa+=area(x) }
+		tuftTermL += L
+	}else{
+		for(x){ tuftIntSa+=area(x) }
+		tuftIntL += L
+	}
+}
+
+forsec obliqueList{
+	if(isTerm_id){
+		for(x){ oblTermSa+=area(x) }
+		oblTermL += L
+	}else{
+		for(x){ oblIntSa+=area(x) }
+		oblIntL += L
+	}
+}
+
+forsec primList{
+	for(x){ trunkSa += area(x) }
+	trunkL += L
+}
+
+forsec basalList {
+	if(abs(brOrd_id-1)<0.001){
+		for(x){ basPrimSa+=area(x) }
+		basPrimL+=L
+	}else{
+		if(isTerm_id){
+			for(x){ basTermSa+=area(x) }
+			basTermL += L
+		}else{
+			for(x){ basIntSa+=area(x) }
+			basIntL += L
+		}
+	}
+}
+
+print "tuftTermSa=",tuftTermSa
+print "tufIntSa=",tuftIntSa
+print "oblTermSa=",oblTermSa
+print "oblIntSa=",oblIntSa
+print "truckSa=",trunkSa
+print "basPrimSa=",basPrimSa
+print "basIntSa=",basIntSa
+print "basTermSa=",basTermSa
+
+print "tuftTermL=",tuftTermL
+print "tuftIntL=",tuftIntL
+print "oblTermL=",oblTermL
+print "oblIntL=",oblIntL
+print "trunkL=",trunkL
+print "basPrimL=",basPrimL
+print "basIntL=",basIntL
+print "basTermL=",basTermL

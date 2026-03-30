@@ -1,0 +1,640 @@
+// From Eriks data, it appears that there is a potential for local vs. global
+// integration, depending on the type of inhibition that is present.
+// I want to investigate this in a well-principled way.
+
+// Set parameters that may be varied during simulations.
+tstop = 300
+synWeight =  0.00018
+excStart = 125 // do 125 if doing CA3 stim,
+
+nExcUseTuft = 0
+nExcUseCa3 = 0
+nInhFf = 0
+nInhFb = 0
+nInhCa3 = 100
+
+// Load scripts.
+load_file("plotVoltsNpy.hoc")
+load_file("excInhPrep.hoc")
+
+// Set indices of dendrites that will be analysed and recorded from.
+dendInd1 = 144//146
+dendInd2 = 143//147
+objref stimDend1,stimDend2
+Cell[0].dend[dendInd1] { stimDend1 = new SectionRef() }
+Cell[0].dend[dendInd2] { stimDend2 = new SectionRef() }
+
+// Turn off CVODE; need same temporal axes for summation across different
+// simulations for linear sum.
+// Try starting with variable time step
+
+cvode.active(0)
+execute("using_cvode_=0")
+
+// Insert Na channels.
+	newGbarSr = 0.03// enough to send a stable Na spike back into the tuft
+	newGbarSlm = newGbarSr 
+	{
+		initChannels()
+		forsec tuftList {
+			gbar_nax = newGbarSlm
+		}
+		forsec ca3List {
+			gbar_nax = newGbarSr
+		}
+		soma.sec {
+			gbar_nax = gnaSoma
+		}
+	}
+
+// Add in synapses to branch 1.
+	theSeg = 0
+	stimDend1.sec {for(x,0){theSeg+=1}}
+	nExcBr1 = theSeg 
+	theSeg = 0
+	objref nsAmpaBr1[nExcBr1],ncAmpaBr1[nExcBr1],synAmpaBr1[nExcBr1]
+	objref nsNmdaBr1[nExcBr1],ncNmdaBr1[nExcBr1],synNmdaBr1[nExcBr1]
+	stimDend1.sec {
+		for(x,0){
+			synAmpaBr1[theSeg] = new excSyn(x)
+			synAmpaBr1[theSeg].xEff = x_eff(x)
+			nsAmpaBr1[theSeg] = new NetStim(x)
+			ncAmpaBr1[theSeg] = new NetCon(nsAmpaBr1[theSeg],synAmpaBr1[theSeg])
+	
+			synNmdaBr1[theSeg] = new Exp2SynNmda(x)
+			nsNmdaBr1[theSeg] = new NetStim(x)
+			ncNmdaBr1[theSeg] = new NetCon(nsNmdaBr1[theSeg],synNmdaBr1[theSeg])
+			theSeg+=1
+		}
+	}
+	for ii=1,nExcBr1 {
+	
+		synAmpaBr1[ii-1].tau1= 0.2  // Jarsky et al., 2005
+		synAmpaBr1[ii-1].tau2 = 2 // Jarsky et al., 2005
+		synAmpaBr1[ii-1].e = 0
+		synAmpaBr1[ii-1].isOn=1
+		
+		
+		nsAmpaBr1[ii-1].interval = 0
+		nsAmpaBr1[ii-1].number = 1
+		nsAmpaBr1[ii-1].start = excStart
+		nsAmpaBr1[ii-1].noise = 0
+		ncAmpaBr1[ii-1].weight = synWeight // 0.18 nS; from Jarsky et al 2005
+		ncAmpaBr1[ii-1].delay = 0
+		
+		synNmdaBr1[ii-1].tau1= 5  
+		synNmdaBr1[ii-1].tau2 = 100 
+		synNmdaBr1[ii-1].e = 0
+		synNmdaBr1[ii-1].isOn=1
+		
+		
+		nsNmdaBr1[ii-1].interval = 0
+		nsNmdaBr1[ii-1].number = 1
+		nsNmdaBr1[ii-1].start = excStart
+		nsNmdaBr1[ii-1].noise = 0
+		ncNmdaBr1[ii-1].weight = synWeight
+		ncNmdaBr1[ii-1].delay = 0
+	
+	
+	}
+	
+// Add in synapses to branch 2.
+	theSeg = 0
+	stimDend2.sec {for(x,0){theSeg+=1}}
+	
+	nExcBr2 = theSeg 
+	theSeg = 0
+	objref nsAmpaBr2[nExcBr2],ncAmpaBr2[nExcBr2],synAmpaBr2[nExcBr2]
+	objref nsNmdaBr2[nExcBr2],ncNmdaBr2[nExcBr2],synNmdaBr2[nExcBr2]
+	stimDend2.sec {
+		for(x,0){
+			synAmpaBr2[theSeg] = new excSyn(x)
+			synAmpaBr2[theSeg].xEff = x_eff(x)
+			nsAmpaBr2[theSeg] = new NetStim(x)
+			ncAmpaBr2[theSeg] = new NetCon(nsAmpaBr2[theSeg],synAmpaBr2[theSeg])
+	
+			synNmdaBr2[theSeg] = new Exp2SynNmda(x)
+			nsNmdaBr2[theSeg] = new NetStim(x)
+			ncNmdaBr2[theSeg] = new NetCon(nsNmdaBr2[theSeg],synNmdaBr2[theSeg])
+			theSeg+=1
+		}
+	}
+	
+	for ii=1,nExcBr2 {
+	
+		synAmpaBr2[ii-1].tau1= 0.2  // Jarsky et al., 2005
+		synAmpaBr2[ii-1].tau2 = 2 // Jarsky et al., 2005
+		synAmpaBr2[ii-1].e = 0
+		synAmpaBr2[ii-1].isOn=1
+		
+		
+		nsAmpaBr2[ii-1].interval = 0
+		nsAmpaBr2[ii-1].number = 1
+		nsAmpaBr2[ii-1].start = excStart
+		nsAmpaBr2[ii-1].noise = 0
+		ncAmpaBr2[ii-1].weight = synWeight // 0.18 nS; from Jarsky et al 2005
+		ncAmpaBr2[ii-1].delay = 0
+		
+		synNmdaBr2[ii-1].tau1= 5  
+		synNmdaBr2[ii-1].tau2 = 100 
+		synNmdaBr2[ii-1].e = 0
+		synNmdaBr2[ii-1].isOn=1
+		
+		
+		nsNmdaBr2[ii-1].interval = 0
+		nsNmdaBr2[ii-1].number = 1
+		nsNmdaBr2[ii-1].start = excStart
+		nsNmdaBr2[ii-1].noise = 0
+		ncNmdaBr2[ii-1].weight = synWeight
+		ncNmdaBr2[ii-1].delay = 0
+	
+	
+	}
+		
+// Set up recording devices.
+	objref theXs // x values to record for each branch.
+	theXs = new Vector()
+	theXs.append(0.1)
+	theXs.append(0.5)
+	theXs.append(0.9)
+	
+	objref br1Rec[theXs.size()],br2Rec[theXs.size()]
+	for ii=1,theXs.size(){
+		curX = theXs.x[ii-1]
+	
+		br1Rec[ii-1] = new Vector()
+		br1Rec[ii-1].record(&stimDend1.sec.v(curX))
+		br2Rec[ii-1] = new Vector()
+		br2Rec[ii-1].record(&stimDend2.sec.v(curX))
+	}
+	
+// Set up objects to store values.  Damn this is gross.  Convention:
+//	prefix: one of "npy" or "vgat"
+//	brI: branch to record from (I=1,2)
+//	sI: branch stimulated (I=1,2,12)
+	objref npyBr1S1[theXs.size()],npyBr1S2[theXs.size()],npyBr1S12[theXs.size()]
+	objref npyBr2S1[theXs.size()],npyBr2S2[theXs.size()],npyBr2S12[theXs.size()]
+	objref vgatBr1S1[theXs.size()],vgatBr1S2[theXs.size()],vgatBr1S12[theXs.size()]
+	objref vgatBr2S1[theXs.size()],vgatBr2S2[theXs.size()],vgatBr2S12[theXs.size()]
+	
+	for ii=1,theXs.size(){
+		npyBr1S1[ii-1] = new Vector()
+		npyBr1S2[ii-1] = new Vector()
+		npyBr1S12[ii-1] = new Vector()
+		npyBr2S1[ii-1] = new Vector()
+		npyBr2S2[ii-1] = new Vector()
+		npyBr2S12[ii-1] = new Vector()
+		vgatBr1S1[ii-1] = new Vector()
+		vgatBr1S2[ii-1] = new Vector()
+		vgatBr1S12[ii-1] = new Vector()
+		vgatBr2S1[ii-1] = new Vector()
+		vgatBr2S2[ii-1] = new Vector()
+		vgatBr2S12[ii-1] = new Vector()
+	}
+	
+	objref npyS1t,npyS2t,npyS12t,vgatS1t,vgatS2t,vgatS12t
+	npyS1t = new Vector()
+	npyS2t = new Vector()
+	npyS12t = new Vector()
+	vgatS1t = new Vector()
+	vgatS2t = new Vector()
+	vgatS12t = new Vector()
+	
+	objref tt
+	tt = new Vector()
+	tt.record(&t)
+	objref ca3Inh
+	
+// Simulation 1: activate branch 1 only.
+	for ii=1,nExcBr1 { 
+		synAmpaBr1[ii-1].isOn=1
+		synNmdaBr1[ii-1].isOn=1
+	}
+	for ii=1,nExcBr2 { 
+		synAmpaBr2[ii-1].isOn=0
+		synNmdaBr2[ii-1].isOn=0
+	}
+	
+// Simulation 1A: NPY-mediated inhibition.
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	ca3Inh = activateInhibition(ca3List,nInhCa3,1,"npy",1)
+	
+	for ii=0,ca3Inh.size()-1{
+		nsVgatAt[ca3Inh.x[ii]].start = 125
+	}
+	
+	run()
+	
+	for ii=1,theXs.size(){
+		npyBr1S1[ii-1].copy(br1Rec[ii-1])
+		npyBr2S1[ii-1].copy(br2Rec[ii-1])
+		npyS1t.copy(tt)
+	}
+	
+// Simulation 1B: VGAT-mediated inhibition.
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	ca3Inh = activateInhibition(ca3List,nInhCa3,1,"vgat",1,"npy",0)
+	
+	for ii=0,ca3Inh.size()-1{
+		nsVgatAt[ca3Inh.x[ii]].start = 125
+	}
+	
+	run()
+	
+	for ii=1,theXs.size(){
+		vgatBr1S1[ii-1].copy(br1Rec[ii-1])
+		vgatBr2S1[ii-1].copy(br2Rec[ii-1])
+		vgatS1t.copy(tt)
+	}
+	
+// Simulation 2: activate branch 2 only.
+	for ii=1,nExcBr1 { 
+		synAmpaBr1[ii-1].isOn=0
+		synNmdaBr1[ii-1].isOn=0
+	}
+	for ii=1,nExcBr2 { 
+		synAmpaBr2[ii-1].isOn=1
+		synNmdaBr2[ii-1].isOn=1
+	}
+	
+// Simulation 2A: NPY-mediated inhibition.
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	ca3Inh = activateInhibition(ca3List,nInhCa3,1,"npy",1)
+	
+	for ii=0,ca3Inh.size()-1{
+		nsVgatAt[ca3Inh.x[ii]].start = 125
+	}
+	
+	run()
+	
+	for ii=1,theXs.size(){
+		npyBr1S2[ii-1].copy(br1Rec[ii-1])
+		npyBr2S2[ii-1].copy(br2Rec[ii-1])
+		npyS2t.copy(tt)
+	}
+	
+// Simulation 2B: VGAT-mediated inhibition.
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	ca3Inh = activateInhibition(ca3List,nInhCa3,1,"vgat",1,"npy",0)
+	
+	for ii=0,ca3Inh.size()-1{
+		nsVgatAt[ca3Inh.x[ii]].start = 125
+	}
+	
+	run()
+	
+	for ii=1,theXs.size(){
+		vgatBr1S2[ii-1].copy(br1Rec[ii-1])
+		vgatBr2S2[ii-1].copy(br2Rec[ii-1])
+		vgatS2t.copy(tt)
+	}
+	
+// Simulation 3: activate branch 1 and branch 2.
+	for ii=1,nExcBr1 { 
+		synAmpaBr1[ii-1].isOn=1
+		synNmdaBr1[ii-1].isOn=1
+	}
+	for ii=1,nExcBr2 { 
+		synAmpaBr2[ii-1].isOn=1
+		synNmdaBr2[ii-1].isOn=1
+	}
+	
+// Simulation 3A: NPY-mediated inhibition.
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	ca3Inh = activateInhibition(ca3List,nInhCa3,1,"npy",1)
+	
+	for ii=0,ca3Inh.size()-1{
+		nsVgatAt[ca3Inh.x[ii]].start = 125
+	}
+	
+	run()
+	
+	for ii=1,theXs.size(){
+		npyBr1S12[ii-1].copy(br1Rec[ii-1])
+		npyBr2S12[ii-1].copy(br2Rec[ii-1])
+		npyS12t.copy(tt)
+	}
+	
+// Simulation 3B: VGAT-mediated inhibition.
+	activateInhibition(cellList,-1)
+	activateExcitation(cellList,-1)
+	ca3Inh = activateInhibition(ca3List,nInhCa3,1,"vgat",1,"npy",0)
+	
+	for ii=0,ca3Inh.size()-1{
+		nsVgatAt[ca3Inh.x[ii]].start = 125
+	}
+	
+	run()
+	
+	for ii=1,theXs.size(){
+		vgatBr1S12[ii-1].copy(br1Rec[ii-1])
+		vgatBr2S12[ii-1].copy(br2Rec[ii-1])
+		vgatS12t.copy(tt)
+	}
+	
+// Visualise.
+	objref npyBr1S1Gr,npyBr1S2Gr,npyBr1S12Gr
+	objref npyBr2S1Gr,npyBr2S2Gr,npyBr2S12Gr
+	objref vgatBr1S1Gr,vgatBr1S2Gr,vgatBr1S12Gr
+	objref vgatBr2S1Gr,vgatBr2S2Gr,vgatBr2S12Gr	
+
+	
+	objref npyBrBox,npySBox[3]
+	npyBrBox = new VBox()
+	npyBrBox.intercept(1){
+		npySBox[0] = new HBox()
+		npySBox[0].intercept(1){
+			npyBr1S1Gr = new Graph()
+			npyBr2S1Gr = new Graph()
+		}
+		npySBox[0].intercept(0)
+		npySBox[0].map("NPY",0,0,100,100)
+		npySBox[1] = new HBox()
+		npySBox[1].intercept(1){
+			npyBr1S2Gr = new Graph()
+			npyBr2S2Gr = new Graph()
+		}
+		npySBox[1].intercept(0)
+		npySBox[1].map("NPY",0,0,100,100)
+		npySBox[2] = new HBox()
+		npySBox[2].intercept(1){
+			npyBr1S12Gr = new Graph()
+			npyBr2S12Gr = new Graph()
+		}
+		npySBox[2].intercept(0)
+		npySBox[2].map("NPY",0,0,100,100)
+	}
+	npyBrBox.intercept(0)
+	npyBrBox.map("NPY",0,0,600,900)
+			
+			
+	objref vgatBrBox,vgatSBox[3]
+	vgatBrBox = new VBox()
+	vgatBrBox.intercept(1){
+		vgatSBox[0] = new HBox()
+		vgatSBox[0].intercept(1){
+			vgatBr1S1Gr = new Graph()
+			vgatBr2S1Gr = new Graph()
+		}
+		vgatSBox[0].intercept(0)
+		vgatSBox[0].map("VGAT",0,0,100,100)
+		vgatSBox[1] = new HBox()
+		vgatSBox[1].intercept(1){
+			vgatBr1S2Gr = new Graph()
+			vgatBr2S2Gr = new Graph()
+		}
+		vgatSBox[1].intercept(0)
+		vgatSBox[1].map("VGAT",0,0,100,100)
+		vgatSBox[2] = new HBox()
+		vgatSBox[2].intercept(1){
+			vgatBr1S12Gr = new Graph()
+			vgatBr2S12Gr = new Graph()
+		}
+		vgatSBox[2].intercept(0)
+		vgatSBox[2].map("VGAT",0,0,100,100)
+	}
+	vgatBrBox.intercept(0)
+	vgatBrBox.map("VGAT",600,0,600,900)
+		
+		
+
+	for ii=1,theXs.size(){
+		npyBr1S1[ii-1].plot(npyBr1S1Gr,npyS1t,ii+1,1)
+		npyBr2S1[ii-1].plot(npyBr2S1Gr,npyS1t,ii+1,1)
+		npyBr1S2[ii-1].plot(npyBr1S2Gr,npyS2t,ii+1,1)
+		npyBr2S2[ii-1].plot(npyBr2S2Gr,npyS2t,ii+1,1)
+		npyBr1S12[ii-1].plot(npyBr1S12Gr,npyS12t,ii+1,1)
+		npyBr2S12[ii-1].plot(npyBr2S12Gr,npyS12t,ii+1,1)
+		
+		vgatBr1S1[ii-1].plot(vgatBr1S1Gr,vgatS1t,ii+1,1)
+		vgatBr2S1[ii-1].plot(vgatBr2S1Gr,vgatS1t,ii+1,1)
+		vgatBr1S2[ii-1].plot(vgatBr1S2Gr,vgatS2t,ii+1,1)
+		vgatBr2S2[ii-1].plot(vgatBr2S2Gr,vgatS2t,ii+1,1)
+		vgatBr1S12[ii-1].plot(vgatBr1S12Gr,vgatS12t,ii+1,1)
+		vgatBr2S12[ii-1].plot(vgatBr2S12Gr,vgatS12t,ii+1,1)
+	}
+	
+	npyBr1S1Gr.label("NPY")
+	npyBr1S1Gr.label("Br1")
+	npyBr1S1Gr.label("S1")
+	
+	npyBr2S1Gr.label("NPY")
+	npyBr2S1Gr.label("Br2")
+	npyBr2S1Gr.label("S1")
+	
+	npyBr1S2Gr.label("NPY")
+	npyBr1S2Gr.label("Br1")
+	npyBr1S2Gr.label("S2")
+	
+	npyBr2S2Gr.label("NPY")
+	npyBr2S2Gr.label("Br2")
+	npyBr2S2Gr.label("S2")
+	
+	npyBr1S12Gr.label("NPY")
+	npyBr1S12Gr.label("Br1")
+	npyBr1S12Gr.label("S12")
+	
+	npyBr2S12Gr.label("NPY")
+	npyBr2S12Gr.label("Br2")
+	npyBr2S12Gr.label("S12")
+	
+	
+	
+	vgatBr1S1Gr.label("VGAT")
+	vgatBr1S1Gr.label("Br1")
+	vgatBr1S1Gr.label("S1")
+	
+	vgatBr2S1Gr.label("VGAT")
+	vgatBr2S1Gr.label("Br2")
+	vgatBr2S1Gr.label("S1")
+	
+	vgatBr1S2Gr.label("VGAT")
+	vgatBr1S2Gr.label("Br1")
+	vgatBr1S2Gr.label("S2")
+	
+	vgatBr2S2Gr.label("VGAT")
+	vgatBr2S2Gr.label("Br2")
+	vgatBr2S2Gr.label("S2")
+	
+	vgatBr1S12Gr.label("VGAT")
+	vgatBr1S12Gr.label("Br1")
+	vgatBr1S12Gr.label("S12")
+	
+	vgatBr2S12Gr.label("VGAT")
+	vgatBr2S12Gr.label("Br2")
+	vgatBr2S12Gr.label("S12")
+	
+	npyBr1S1Gr.size(120,150,-70,0)
+	npyBr2S1Gr.size(120,150,-70,0)
+	npyBr1S2Gr.size(120,150,-70,0)
+	npyBr2S2Gr.size(120,150,-70,0)
+	npyBr1S12Gr.size(120,150,-70,0)
+	npyBr2S12Gr.size(120,150,-70,0)
+	vgatBr1S1Gr.size(120,150,-70,0)
+	vgatBr2S1Gr.size(120,150,-70,0)
+	vgatBr1S2Gr.size(120,150,-70,0)
+	vgatBr2S2Gr.size(120,150,-70,0)
+	vgatBr1S12Gr.size(120,150,-70,0)
+	vgatBr2S12Gr.size(120,150,-70,0)
+	
+// Do arithmetic.
+	objref npyBr1Ln[theXs.size()],npyBr2Ln[theXs.size()],vgatBr1Ln[theXs.size()],vgatBr2Ln[theXs.size()]
+	for ii=1,theXs.size(){
+		npyBr1Ln[ii-1] = new Vector()
+		npyBr2Ln[ii-1] = new Vector()
+		vgatBr1Ln[ii-1] = new Vector()
+		vgatBr2Ln[ii-1] = new Vector()
+		
+		npyBr1Ln[ii-1].copy(npyBr1S1[ii-1])
+		npyBr1Ln[ii-1].add(npyBr1S2[ii-1])
+		npyBr1Ln[ii-1].div(2)
+		npyBr2Ln[ii-1].copy(npyBr2S1[ii-1])
+		npyBr2Ln[ii-1].add(npyBr2S2[ii-1])
+		npyBr2Ln[ii-1].div(2)
+		vgatBr1Ln[ii-1].copy(vgatBr1S1[ii-1])
+		vgatBr1Ln[ii-1].add(vgatBr1S2[ii-1])
+		vgatBr1Ln[ii-1].div(2)
+		vgatBr2Ln[ii-1].copy(vgatBr2S1[ii-1])
+		vgatBr2Ln[ii-1].add(vgatBr2S2[ii-1])
+		vgatBr2Ln[ii-1].div(2)
+	}
+	
+	// plot.
+	objref arithBox
+	arithBox = new HBox()
+	
+	objref npyBr1LnGr,npyBr2LnGr,vgatBr1LnGr,vgatBr2LnGr
+	arithBox.intercept(1) {
+		npyBr1LnGr = new Graph()
+		npyBr2LnGr = new Graph()
+		vgatBr1LnGr = new Graph()
+		vgatBr2LnGr = new Graph()
+		
+		for ii=1,theXs.size() {
+			// Note the temporal (x) axes must be identical here,
+			// requiring things to be run on a fixed time step.  As
+			// a result, npyS1t=npyS2t=npyS12t=vgatS1t=vgatS2t=vgatS12t
+			npyBr1Ln[ii-1].plot(npyBr1LnGr,npyS12t,ii+1,2)
+			npyBr2Ln[ii-1].plot(npyBr2LnGr,npyS12t,ii+1,2)
+			vgatBr1Ln[ii-1].plot(vgatBr1LnGr,vgatS12t,ii+1,2)
+			vgatBr2Ln[ii-1].plot(vgatBr2LnGr,vgatS12t,ii+1,2)
+			
+			
+			npyBr1S12[ii-1].plot(npyBr1LnGr,npyS12t,ii+1,1)
+			npyBr2S12[ii-1].plot(npyBr2LnGr,npyS12t,ii+1,1)
+			vgatBr1S12[ii-1].plot(vgatBr1LnGr,vgatS12t,ii+1,1)
+			vgatBr2S12[ii-1].plot(vgatBr2LnGr,vgatS12t,ii+1,1)
+			
+			
+		}
+		
+		npyBr1LnGr.size(120,150,-70,0)
+		npyBr2LnGr.size(120,150,-70,0)
+		vgatBr1LnGr.size(120,150,-70,0)
+		vgatBr2LnGr.size(120,150,-70,0)
+		
+		npyBr1LnGr.label("NPY, br1")
+		npyBr2LnGr.label("NPY, br2")
+		vgatBr1LnGr.label("VGAT, br1")
+		vgatBr2LnGr.label("VGAT, br2")
+			
+	}
+	arithBox.intercept(0)
+	arithBox.map("Arithmetic sum",0,0,1200,300)
+	
+// Compare single stim vs. paired stim:
+	objref npyBr1Sin[theXs.size()],npyBr2Sin[theXs.size()],vgatBr1Sin[theXs.size()],vgatBr2Sin[theXs.size()]
+	for ii=1,theXs.size(){
+		npyBr1Sin[ii-1] = new Vector()
+		npyBr2Sin[ii-1] = new Vector()
+		vgatBr1Sin[ii-1] = new Vector()
+		vgatBr2Sin[ii-1] = new Vector()
+		
+		npyBr1Sin[ii-1].copy(npyBr1S1[ii-1])
+		npyBr2Sin[ii-1].copy(npyBr2S2[ii-1])
+		vgatBr1Sin[ii-1].copy(vgatBr1S1[ii-1])
+		vgatBr2Sin[ii-1].copy(vgatBr2S2[ii-1])
+	}
+	
+	// plot.
+	objref singBox
+	singBox = new HBox()
+	
+	objref npyBr1SinGr,npyBr2SinGr,vgatBr1SinGr,vgatBr2SinGr
+	singBox.intercept(1) {
+		npyBr1SinGr = new Graph()
+		npyBr2SinGr = new Graph()
+		vgatBr1SinGr = new Graph()
+		vgatBr2SinGr = new Graph()
+		
+		for ii=1,theXs.size() {
+			// Note the temporal (x) axes must be identical here,
+			// requiring things to be run on a fixed time step.  As
+			// a result, npyS1t=npyS2t=npyS12t=vgatS1t=vgatS2t=vgatS12t
+			npyBr1S1[ii-1].plot(npyBr1SinGr,npyS1t,ii+1,2)
+			npyBr2S2[ii-1].plot(npyBr2SinGr,npyS2t,ii+1,2)
+			vgatBr1S1[ii-1].plot(vgatBr1SinGr,vgatS1t,ii+1,2)
+			vgatBr2S2[ii-1].plot(vgatBr2SinGr,vgatS2t,ii+1,2)
+			
+			
+			npyBr1S12[ii-1].plot(npyBr1SinGr,npyS12t,ii+1,1)
+			npyBr2S12[ii-1].plot(npyBr2SinGr,npyS12t,ii+1,1)
+			vgatBr1S12[ii-1].plot(vgatBr1SinGr,vgatS12t,ii+1,1)
+			vgatBr2S12[ii-1].plot(vgatBr2SinGr,vgatS12t,ii+1,1)
+			
+			
+		}
+		
+		npyBr1SinGr.size(120,150,-70,0)
+		npyBr2SinGr.size(120,150,-70,0)
+		vgatBr1SinGr.size(120,150,-70,0)
+		vgatBr2SinGr.size(120,150,-70,0)
+		
+		npyBr1SinGr.label("NPY, br1")
+		npyBr2SinGr.label("NPY, br2")
+		vgatBr1SinGr.label("VGAT, br1")
+		vgatBr2SinGr.label("VGAT, br2")
+			
+	}
+	singBox.intercept(0)
+	singBox.map("Single vs. paired stimuli",0,0,1200,300)
+	
+	
+	
+	
+	
+// Visualise stimulation locations.
+	objref fakeCC1[theXs.size()],fakeCC2[theXs.size()]
+	stimDend1.sec {
+		for ii=1,theXs.size(){
+			curX = theXs.x[ii-1]
+			fakeCC1[ii-1] = new IClamp(curX)
+			fakeCC1[ii-1].amp = 0
+			fakeCC1[ii-1].dur = 0
+			fakeCC1[ii-1].del = 10000
+		}
+	}
+	stimDend2.sec {
+		for ii=1,theXs.size(){
+			curX = theXs.x[ii-1]
+			fakeCC2[ii-1] = new IClamp(curX)
+			fakeCC2[ii-1].amp = 0
+			fakeCC2[ii-1].dur = 0
+			fakeCC2[ii-1].del = 10000
+		}
+	}
+	
+	objref stimGr
+	stimGr = new Shape()
+	for ii=1,theXs.size(){
+		stimGr.point_mark(fakeCC1[ii-1],ii+1,"O",6)
+		stimGr.point_mark(fakeCC2[ii-1],ii+1,"O",6)
+	}
+	stimGr.label("Stimulus locations")
+			
+	

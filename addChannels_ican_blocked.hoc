@@ -1,0 +1,248 @@
+// DECLARE OBJECTS TO BE ASSIGNED DURING initChannels() CALL
+objref osec[10]
+
+
+// LOAD PARAMETERS FOR CHANNELS
+{
+	load_file("channelParameters.hoc")
+}
+
+proc initChannels(){
+	// add in voltage-gated channels
+	{
+		forall {
+			insert pas  g_pas=1/(Rm)  Ra=global_ra  e_pas=Vleak
+			insert id
+			insert vmax
+			insert vmin
+		}
+		
+		// Ca2+-holding mechanisms from Combe et al. (2023) https://doi.org/10.7554/eLife.84387
+		forall {
+			for(x){
+				insert cacum
+				}
+			}
+
+		soma.sec { 
+			insert nax  gbar_nax=gnaSoma
+			insert kdr  gkdrbar_kdr=gkdr
+			insert kap  gkabar_kap=gkap
+			insert kad  gkabar_kad=0
+			insert pas	e_pas=Vleak  g_pas=1/Rm   Ra=global_ra  cm=Cm
+			insert kca gbar_kca = gkca_soma
+			insert cagk gbar_cagk = gcagk_soma
+			insert h ghdbar_h = gh_soma  vhalfl_h = -73
+			insert ican
+				gbar_ican = 0 //*0.95 *0.8
+				taur_ican = 400
+		}
+		
+
+		forsec basalList {
+			// msc: 031015: commented out below and replaced such that
+			// basal scaling looks like apical scaling
+		//	insert nax  gbar_nax=gnabar  
+		//	insert kdr  gkdrbar_kdr=gkdr
+		//	insert kap  gkabar_kap=gkap
+		//	insert kad  gkabar_kad=0
+		//	insert pas	e_pas=Vleak  g_pas=1/Rm   Ra=global_ra  cm=Cm
+					insert pas	e_pas=Vleak  Ra=global_ra 
+			for (x) {
+				xdist=distance(x)
+				if (xdist <= spinelimit) {
+					g_pas(x) = 1/Rm
+					cm(x) = Cm
+				} else {
+					g_pas(x) = spinefactor/Rm
+					cm(x) = spinefactor*Cm
+				}
+			}
+			insert nax	ar2_nax = 1
+			insert kdr	gkdrbar_kdr=gkdr
+			insert kap
+			insert kad
+			gkabar_kap = 0
+			gkabar_kad = 0
+			
+			for (x) {
+				xdist = distance(x)
+				xdistNoLimit = xdist
+				if (xdist > dlimit) {
+					xdist = dlimit
+				}
+				gkabar_kap(x) = 0
+				gkabar_kad(x) = 0
+				if (xdist > dprox) {
+					gkabar_kad(x) = gkad*(1+xdist*dslope)
+				} else {
+					gkabar_kap(x) = gkap*(1+xdist*dslope)
+				}
+			}
+			
+		}
+		
+		soma.sec {
+			area(0.5)
+			distance()
+		}
+			
+		forsec apicalList {
+			insert pas	e_pas=Vleak  Ra=global_ra 
+			for (x) {
+				xdist=distance(x)
+				if (xdist <= spinelimit) {
+					g_pas(x) = 1/Rm
+					cm(x) = Cm
+				} else {
+					g_pas(x) = spinefactor/Rm
+					cm(x) = spinefactor*Cm
+				}
+			}
+			insert nax	
+			insert kdr	gkdrbar_kdr=gkdr
+			insert kap
+			insert kad
+			gkabar_kap = 0
+			gkabar_kad = 0
+			for (x) {
+				xdist = distance(x)
+				xdistNoLimit = xdist
+				if (xdist > dlimit) {
+					xdist = dlimit
+				}
+				gkabar_kap(x) = 0
+				gkabar_kad(x) = 0
+				if (xdist > dprox) {
+					gkabar_kad(x) = gkad*(1+xdist*dslope)
+				} else {
+					gkabar_kap(x) = gkap*(1+xdist*dslope)
+				}
+			}
+			insert kca 
+			insert cagk
+			for (x){
+				xdist = distance(x)
+				gbar_kca(x) = gkca_dend
+				gbar_cagk(x) = gcagk_dend
+				if (xdist>150){
+					gbar_kca(x) = gkca_dend * 0.25
+					gbar_cagk(x) = gcagk_dend * 0.25 * 2 * 0.75 // * 1.5
+				}
+				if (xdist>250){
+					gbar_kca(x) = gkca_dend * 0.25 //* 0.75
+					gbar_cagk(x) = gcagk_dend * 0.25 * 2 * 0.77 //* 0.75
+				}
+			}
+			insert h
+			for (x){
+				xdist = distance(x)
+				// re-designed distribution to account for more HCN in proximal region
+				// This is our best try to lower the dendrite input resistance until now (numbered as "Try2" in the ppt file "Lab_20240902-")
+				ghdbar_h(x) = 0.3 * gh_soma + ((8 * gh_soma) / (1 + exp((200-xdist)/50)))
+				vhalfl_h = -81
+
+				// Piles of previous tries
+				// ghdbar_h(x) = 0.3 * gh_soma + ((8 * gh_soma) / (1 + exp((180-xdist)/80)))  // (Try 3 in ppt file)
+				// ghdbar_h(x) = gh_soma + ((8 * gh_soma) / (1 + exp((280-xdist)/50))) // Poirazi-Mel distribtution(Try 1 in ppt file)
+				}
+			insert ican
+				gbar_ican = 0 //*0.75
+				taur_ican = 400
+			}
+		}
+		
+		
+		
+		
+		forsec obliqueList {
+		
+			
+//			osec[0] = new SectionRef()		// osec[0] contains the current oblique branch in the list
+//			for p = 1, 10 {
+//				osec[p-1].parent {
+//					osec[p] = new SectionRef()	// osec[1] references the parent of osec[0], osec[2] references 
+//					id1 = id1_id			// the parent of osec[1] etc. until the primary branch
+//				}
+//				if (id1 == 1) { 		// if osec[p] is the primary branch, stop incrementing p 
+//					break
+//				}
+//			}
+//			osec[p-1].sec{	// activate the first parent oblique branch
+//				pdist = id2_id(0)	// pdist is the distance of the parent oblique branch from the soma
+//				for (x) {
+//					if (x == 0) {
+//						odist = distance()	// odist is zeroed to where the parent oblique branch intersects the primary branch
+//					}
+//				}
+//			}
+//			osec[0].sec {
+				for (x) {
+					odist = distance(x) 	// odist is the distance of each segment along the oblique branch
+//					id3_id(x) = odist
+//					if (pdist > dlimit) {
+						pdist_k = dlimit
+//					} else {
+//						pdist_k = pdist
+//					}				
+//					if (gkabar_kap(x) > 0) {
+						gkabar_kap(x) = gkap*(1+pdist_k*dslope+odist*okslope)
+//					}
+//					if (gkabar_kad(x) > 0) {
+					gkabar_kad(x) = gkad*(1+pdist_k*dslope+odist*okslope)
+//					}
+//					if (gkabar_kap(x) > okmax) {
+//						gkabar_kap(x) = okmax
+//					}
+//					if (gkabar_kad(x) > okmax) {
+//						gkabar_kad(x) = okmax
+					}
+//					
+//				}
+//			}
+		}
+		
+
+		forsec tuftList {
+			gbar_nax = newGbarSlm
+			ar2_nax = 1 //0.4 //0.4 // 0.61 gives good results for producing slow spikes
+		}
+		forsec ca3List {
+			gbar_nax = newGbarSr
+		}
+		soma.sec {
+			gbar_nax = gnaSoma
+		}
+		
+		soma.sec { 
+			distance()
+		}
+		forsec basalList {
+			// msc: 031015: changed the below original code to scale basal densities
+			// like apical densities.  See assignment of channels in earlier
+			// forsec basalList block of code.
+		//	for (x) {
+		//		odist=distance(x)	
+		//		gkabar_kap(x) = gkap*(1+odist*okslope)
+		//		if (gkabar_kap(x) > okmax) {
+		//			gkabar_kap(x) = okmax
+		//		}
+		//	}
+		}
+		
+		ar2_soma = 0.8
+
+		soma.sec{
+			ar2_nax = ar2_soma
+		}
+		forall {
+			for(x){
+				xdist = distance(x)
+				ar2_nax = ar2_soma - 0.00025 * xdist  // at 300 µm: ar2_nax = ar2_soma - 0.075
+				}
+		}
+		forsec tuftList{
+			ar2_nax = 0.65
+		}
+
+	}

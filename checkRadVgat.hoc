@@ -1,0 +1,203 @@
+// This script checks for consistency between AT data and simulation data for
+// VGAT inputs in radiatum.
+
+
+
+// 1. Perform a check based upon terminal vs. nonterminal branches, not broken into
+// thirds.
+	
+	objref vgatRadParBr,vgatRadLeafBr
+	vgatRadParBr = new Vector(numParRad) // numParRad defined in checkRadVgat.hoc
+	vgatRadLeafBr = new Vector(numLeafRad) // numLeafRad defined in checkRadVgat.hoc
+	
+	curTerm = 0
+	curPar = 0
+	forsec obliqueList {
+		if(isTerm_id){
+			for (x,0) {
+				vgatRadLeafBr.x[curTerm] = vgatRadLeafBr.x[curTerm] + vgatRadAt_syns(x)
+			}
+			curTerm+=1
+		}else{
+			for (x,0) {
+				vgatRadParBr.x[curPar] = vgatRadParBr.x[curPar] + vgatRadAt_syns(x)
+			}
+			curPar+=1
+		}
+	}
+	
+	print "Number of parent branch synapses: ", vgatRadParBr.mean(),"+/-",vgatRadParBr.stdev()
+	print "Number of leaf branch synapses: ",vgatRadLeafBr.mean(),"+/-",vgatRadLeafBr.stdev()
+	
+// 2.  	Perform a check based upon leaf vs. branches, broken into thirds.
+// 	Extract data as if it were AT data and plot; to do this, need to keep
+//	track of both length and SA for each division of each neurite.
+
+	objref vgatRadParCut[dauDivVgat],vgatRadLeafCut[dauDivVgat]
+	for mm=1,dauDivVgat {
+		vgatRadParCut[mm-1] = new Vector(numParRad)
+		vgatRadLeafCut[mm-1] = new Vector(numLeafRad)
+	}
+	
+	objref lParCutVgat[dauDivVgat],saParCutVgat[dauDivVgat],lLeafCutVgat[dauDivVgat],saLeafCutVgat[dauDivVgat]
+	for mm=1,dauDivVgat {
+		lParCutVgat[mm-1] = new Vector(numParRad)
+		saParCutVgat[mm-1] = new Vector(numParRad)
+		lLeafCutVgat[mm-1] = new Vector(numLeafRad)
+		saLeafCutVgat[mm-1] = new Vector(numLeafRad)
+	}
+	
+	
+	curTerm = 0
+	curPar = 0
+	forsec obliqueList {
+		if(isTerm_id){
+			for(x,0){
+				// Increment number of synapses.
+				curVal = vgatRadLeafCut[int(x*dauDivVgat)].x[curTerm]
+				curVal = curVal + vgatRadAt_syns(x)
+				vgatRadLeafCut[int(x*dauDivVgat)].x[curTerm] = curVal
+				
+				// Increment length.
+				curVal = lLeafCutVgat[int(x*dauDivVgat)].x[curTerm]
+				curVal = curVal + L/nseg
+				lLeafCutVgat[int(x*dauDivVgat)].x[curTerm] = curVal
+				
+				// Increment surface area.
+				curVal = saLeafCutVgat[int(x*dauDivVgat)].x[curTerm]
+				curVal = curVal + area(x)
+				saLeafCutVgat[int(x*dauDivVgat)].x[curTerm] = curVal
+			}
+			curTerm+=1
+		}else{
+			for(x,0){
+				// Increment number of synapses.
+				curVal = vgatRadParCut[int(x*dauDivVgat)].x[curPar]
+				curVal = curVal + vgatRadAt_syns(x)
+				vgatRadParCut[int(x*dauDivVgat)].x[curPar] = curVal
+				
+				// Increment length.
+				curVal = lParCutVgat[int(x*dauDivVgat)].x[curPar]
+				curVal = curVal + L/nseg
+				lParCutVgat[int(x*dauDivVgat)].x[curPar] = curVal
+				
+				// Increment surface area.
+				curVal = saParCutVgat[int(x*dauDivVgat)].x[curPar]
+				curVal = curVal + area(x)
+				saParCutVgat[int(x*dauDivVgat)].x[curPar] = curVal
+			}
+			curPar+=1
+		}
+	}
+	
+	
+	// Normalise output for plotting by length and surface area.
+	// Note this cleans up.  Very short sections may have only one section,
+	// and thus leave length and surface area entries equal to zero for
+	// some sections.  This, in turn, leads to NA values when normalising;
+	// however, these short stretches of dendrites also have no inputs (=0/0)
+	// so at this point just set the length and surface area very high
+	// to avoid dividing by zero, which will return the proper result.
+	objref vgatRadParCutL[dauDivVgat],vgatRadLeafCutL[dauDivVgat]
+	objref vgatRadParCutSa[dauDivVgat],vgatRadLeafCutSa[dauDivVgat]
+	
+	for mm=1,dauDivVgat {
+		vgatRadParCutL[mm-1] = new Vector(numParRad)
+		vgatRadLeafCutL[mm-1] = new Vector(numLeafRad)
+		vgatRadParCutSa[mm-1] = new Vector(numParRad)
+		vgatRadLeafCutSa[mm-1] = new Vector(numLeafRad)
+		
+		vgatRadParCutL[mm-1].copy(vgatRadParCut[mm-1])
+		vgatRadLeafCutL[mm-1].copy(vgatRadLeafCut[mm-1])
+		vgatRadParCutSa[mm-1].copy(vgatRadParCut[mm-1])
+		vgatRadLeafCutSa[mm-1].copy(vgatRadLeafCut[mm-1])
+		
+		for nn=1,vgatRadParCutSa[mm-1].size(){
+			if(vgatRadParCutSa[mm-1].x[nn-1]>0.1){
+				// Having a synapse implies having a length and SA.
+				vgatRadParCutL[mm-1].x[nn-1] = vgatRadParCutL[mm-1].x[nn-1] / lParCutVgat[mm-1].x[nn-1]
+				vgatRadParCutSa[mm-1].x[nn-1] = vgatRadParCutSa[mm-1].x[nn-1] / saParCutVgat[mm-1].x[nn-1]
+			}else{
+				vgatRadParCutL[mm-1].x[nn-1] = 0
+				vgatRadParCutSa[mm-1].x[nn-1] = 0
+			}
+		}
+		
+		for nn=1,vgatRadLeafCutSa[mm-1].size(){
+			if(vgatRadLeafCutSa[mm-1].x[nn-1]>0.1){
+				// Having a synapse implies having a length and SA.
+				vgatRadLeafCutL[mm-1].x[nn-1] = vgatRadLeafCutL[mm-1].x[nn-1] / lLeafCutVgat[mm-1].x[nn-1]
+				vgatRadLeafCutSa[mm-1].x[nn-1] = vgatRadLeafCutSa[mm-1].x[nn-1] / saLeafCutVgat[mm-1].x[nn-1]
+			}else{
+				vgatRadLeafCutL[mm-1].x[nn-1] = 0
+				vgatRadLeafCutSa[mm-1].x[nn-1] = 0
+			}
+		}
+			
+	}
+	
+	
+	
+	// Define x axis for plotting.
+	objref xAxisParVgat[dauDivVgat],xAxisLeafVgat[dauDivVgat]
+	for mm=1,dauDivVgat {
+		xAxisParVgat[mm-1] = new Vector(numParRad,(mm/dauDivVgat))
+		xAxisLeafVgat[mm-1] = new Vector(numLeafRad,(mm/dauDivVgat))
+	}
+	
+	// Plot.
+	objref lVgatGr,saVgatGr
+	lVgatGr = new Graph()
+	for mm=1,dauDivVgat {
+		vgatRadParCutL[mm-1].mark(lVgatGr,xAxisParVgat[mm-1],"O",6,2) // parent branches, divided in 3, normed by L
+		vgatRadLeafCutL[mm-1].mark(lVgatGr,xAxisLeafVgat[mm-1],"O",6,3) // leaf branches, divided in 3, normed by L
+	}
+	lVgatGr.label(0,0,"Vgat oblique length-normed synapses (syn/um); red = parent, blue = leaf")
+	lVgatGr.exec_menu("View = plot")
+	
+	saVgatGr = new Graph()
+	for mm=1,dauDivVgat {
+		vgatRadParCutSa[mm-1].mark(saVgatGr,xAxisParVgat[mm-1],"O",6,2) // parent branches, divided in 3, normed by SA
+		vgatRadLeafCutSa[mm-1].mark(saVgatGr,xAxisLeafVgat[mm-1],"O",6,3) // leaf branches, divided in 3, normed by SA
+	}
+	saVgatGr.label(0,0,"Vgat oblique SA-normed synapses (syn/um2); red = parent, blue = leaf")
+	saVgatGr.exec_menu("View = plot")
+	
+	// Generate statistics and plot.
+	objref xAxisVgat
+	xAxisVgat = new Vector(dauDivVgat)
+	for mm=1,dauDivVgat { xAxisVgat.x[mm-1] = (mm/dauDivVgat) }
+	
+	objref vgatRadParCutLMu,vgatRadLeafCutLMu,vgatRadParCutLErr,vgatRadLeafCutLErr
+	objref vgatRadParCutSaMu,vgatRadLeafCutSaMu,vgatRadParCutSaErr,vgatRadLeafCutSaErr
+	
+	vgatRadParCutLMu = new Vector(dauDivVgat)
+	vgatRadLeafCutLMu = new Vector(dauDivVgat)
+	vgatRadParCutLErr = new Vector(dauDivVgat)
+	vgatRadLeafCutLErr = new Vector(dauDivVgat)
+	vgatRadParCutSaMu = new Vector(dauDivVgat)
+	vgatRadLeafCutSaMu = new Vector(dauDivVgat)
+	vgatRadParCutSaErr = new Vector(dauDivVgat)
+	vgatRadLeafCutSaErr = new Vector(dauDivVgat)
+	
+	for mm=1,dauDivVgat {
+		vgatRadParCutLMu.x[mm-1] = vgatRadParCutL[mm-1].mean()
+		vgatRadLeafCutLMu.x[mm-1] = vgatRadLeafCutL[mm-1].mean()
+		vgatRadParCutLErr.x[mm-1] = vgatRadParCutL[mm-1].stdev()
+		vgatRadLeafCutLErr.x[mm-1] = vgatRadLeafCutL[mm-1].stdev()
+		vgatRadParCutSaMu.x[mm-1] = vgatRadParCutSa[mm-1].mean()
+		vgatRadLeafCutSaMu.x[mm-1] = vgatRadLeafCutSa[mm-1].mean()
+		vgatRadParCutSaErr.x[mm-1] = vgatRadParCutSa[mm-1].stdev()
+		vgatRadLeafCutSaErr.x[mm-1] = vgatRadLeafCutSa[mm-1].stdev()
+	}
+	
+	vgatRadParCutLMu.plot(lVgatGr,xAxisVgat,2,1)
+	vgatRadParCutLMu.ploterr(lVgatGr,xAxisVgat,vgatRadParCutLErr,5,2,1)
+	vgatRadLeafCutLMu.plot(lVgatGr,xAxisVgat,3,1)
+	vgatRadLeafCutLMu.ploterr(lVgatGr,xAxisVgat,vgatRadLeafCutLErr,5,3,1)
+	vgatRadParCutSaMu.plot(saVgatGr,xAxisVgat,2,1)
+	vgatRadParCutSaMu.ploterr(saVgatGr,xAxisVgat,vgatRadParCutSaErr,5,2,1)
+	vgatRadLeafCutSaMu.plot(saVgatGr,xAxisVgat,3,1)
+	vgatRadLeafCutSaMu.ploterr(saVgatGr,xAxisVgat,vgatRadLeafCutSaErr,5,3,1)
+	
+

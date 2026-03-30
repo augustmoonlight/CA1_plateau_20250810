@@ -1,0 +1,23 @@
+/*
+
+// LOAD CONTROL MENU
+objref contrl
+contrl = new VBox()
+{
+	contrl.intercept(1)
+	nrncontrolmenu()
+	contrl.intercept(0)
+	contrl.map("Control",0,75,-1,-1)	// left, top, width, height
+}
+
+// DISPLAY VOLTAGE-GATED CHANNEL PARAMETERS
+{
+	xpanel("Voltage-gated chan params")
+	//xvalue("gnabar","gnabar",1,"initchannels()")
+	xvalue("gkdr","gkdr",1,"initchannels()")
+	xvalue("gkap","gkap",1,"initchannels()")
+	xvalue("gkad","gkad",1,"initchannels()")
+	xpanel(0,400,-1,-1)
+}
+
+*/

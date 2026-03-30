@@ -1,0 +1,214 @@
+// This script checks for consistency between AT data and simulation data in the 
+// tuft; namely, SST and VGAT inputs.
+
+// 1.  Check to make sure # uniform distribution synapses = # AT dist synapses.
+	print "The total number of SST synapses expected for AT data is ",totSstAt
+	print "The total number of SST synapses added for AT data is ",totalSstAtAdded
+
+// 2. Perform a check based upon terminal vs. nonterminal branches, not broken into
+// thirds.
+
+	numParTuft = 0
+	numLeafTuft = 0
+	forsec tuftList {
+		curSec = new SectionRef()
+		if(isTerm_id){
+			numLeafTuft += 1
+		}else{
+			numParTuft += 1
+		}
+	}
+	
+	objref sstParBr,sstLeafBr
+	sstParBr = new Vector(numParTuft)
+	sstLeafBr = new Vector(numLeafTuft)
+	
+	curTerm = 0
+	curPar = 0
+	forsec tuftList {
+		if(isTerm_id){
+			for (x,0) {
+				sstLeafBr.x[curTerm] = sstLeafBr.x[curTerm] + sstAt_syns(x)
+			}
+			curTerm+=1
+		}else{
+			for (x,0) {
+				sstParBr.x[curPar] = sstParBr.x[curPar] + sstAt_syns(x)
+			}
+			curPar+=1
+		}
+	}
+	
+	print "Number of parent branch synapses: ", sstParBr.mean(),"+/-",sstParBr.stdev()
+	print "Number of leaf branch synapses: ",sstLeafBr.mean(),"+/-",sstLeafBr.stdev()
+	
+// 3.  	Perform a check based upon leaf vs. branches, broken into thirds.
+// 	Extract data as if it were AT data and plot; to do this, need to keep
+//	track of both length and SA for each division of each neurite.
+
+	objref sstParCut[dauDivSst],sstLeafCut[dauDivSst]
+	for mm=1,dauDivSst {
+		sstParCut[mm-1] = new Vector(numParTuft)
+		sstLeafCut[mm-1] = new Vector(numLeafTuft)
+	}
+	
+	objref lParCut[dauDivSst],saParCut[dauDivSst],lLeafCut[dauDivSst],saLeafCut[dauDivSst]
+	for mm=1,dauDivSst {
+		lParCut[mm-1] = new Vector(numParTuft)
+		saParCut[mm-1] = new Vector(numParTuft)
+		lLeafCut[mm-1] = new Vector(numLeafTuft)
+		saLeafCut[mm-1] = new Vector(numLeafTuft)
+	}
+	
+	
+	curTerm = 0
+	curPar = 0
+	forsec tuftList {
+		if(isTerm_id){
+			for(x,0){
+				// Increment number of synapses.
+				curVal = sstLeafCut[int(x*dauDivSst)].x[curTerm]
+				curVal = curVal + sstAt_syns(x)
+				sstLeafCut[int(x*dauDivSst)].x[curTerm] = curVal
+				
+				// Increment length.
+				curVal = lLeafCut[int(x*dauDivSst)].x[curTerm]
+				curVal = curVal + L/nseg
+				lLeafCut[int(x*dauDivSst)].x[curTerm] = curVal
+				
+				// Increment surface area.
+				curVal = saLeafCut[int(x*dauDivSst)].x[curTerm]
+				curVal = curVal + area(x)
+				saLeafCut[int(x*dauDivSst)].x[curTerm] = curVal
+			}
+			curTerm+=1
+		}else{
+			for(x,0){
+				// Increment number of synapses.
+				curVal = sstParCut[int(x*dauDivSst)].x[curPar]
+				curVal = curVal + sstAt_syns(x)
+				sstParCut[int(x*dauDivSst)].x[curPar] = curVal
+				
+				// Increment length.
+				curVal = lParCut[int(x*dauDivSst)].x[curPar]
+				curVal = curVal + L/nseg
+				lParCut[int(x*dauDivSst)].x[curPar] = curVal
+				
+				// Increment surface area.
+				curVal = saParCut[int(x*dauDivSst)].x[curPar]
+				curVal = curVal + area(x)
+				saParCut[int(x*dauDivSst)].x[curPar] = curVal
+			}
+			curPar+=1
+		}
+	}
+	
+	
+	// Normalise output for plotting by length and surface area.
+	// Note this cleans up.  Very short sections may have only one section,
+	// and thus leave length and surface area entries equal to zero for
+	// some sections.  This, in turn, leads to NA values when normalising;
+	// however, these short stretches of dendrites also have no inputs (=0/0)
+	// so at this point just set the length and surface area very high
+	// to avoid dividing by zero, which will return the proper result.
+	objref sstParCutL[dauDivSst],sstLeafCutL[dauDivSst]
+	objref sstParCutSa[dauDivSst],sstLeafCutSa[dauDivSst]
+	
+	for mm=1,dauDivSst {
+		sstParCutL[mm-1] = new Vector(numParTuft)
+		sstLeafCutL[mm-1] = new Vector(numLeafTuft)
+		sstParCutSa[mm-1] = new Vector(numParTuft)
+		sstLeafCutSa[mm-1] = new Vector(numLeafTuft)
+		
+		sstParCutL[mm-1].copy(sstParCut[mm-1])
+		sstLeafCutL[mm-1].copy(sstLeafCut[mm-1])
+		sstParCutSa[mm-1].copy(sstParCut[mm-1])
+		sstLeafCutSa[mm-1].copy(sstLeafCut[mm-1])
+		
+		for nn=1,sstParCutSa[mm-1].size(){
+			if(sstParCutSa[mm-1].x[nn-1]>0.1){
+				// Having a synapse implies having a length and SA.
+				sstParCutL[mm-1].x[nn-1] = sstParCutL[mm-1].x[nn-1] / lParCut[mm-1].x[nn-1]
+				sstParCutSa[mm-1].x[nn-1] = sstParCutSa[mm-1].x[nn-1] / saParCut[mm-1].x[nn-1]
+			}else{
+				sstParCutL[mm-1].x[nn-1] = 0
+				sstParCutSa[mm-1].x[nn-1] = 0
+			}
+		}
+		
+		for nn=1,sstLeafCutSa[mm-1].size(){
+			if(sstLeafCutSa[mm-1].x[nn-1]>0.1){
+				// Having a synapse implies having a length and SA.
+				sstLeafCutL[mm-1].x[nn-1] = sstLeafCutL[mm-1].x[nn-1] / lLeafCut[mm-1].x[nn-1]
+				sstLeafCutSa[mm-1].x[nn-1] = sstLeafCutSa[mm-1].x[nn-1] / saLeafCut[mm-1].x[nn-1]
+			}else{
+				sstLeafCutL[mm-1].x[nn-1] = 0
+				sstLeafCutSa[mm-1].x[nn-1] = 0
+			}
+		}
+			
+	}
+	
+	
+	
+	// Define x axis for plotting.
+	objref xAxisParSst[dauDivSst],xAxisLeafSst[dauDivSst]
+	for mm=1,dauDivSst {
+		xAxisParSst[mm-1] = new Vector(numParTuft,(mm/dauDivSst))
+		xAxisLeafSst[mm-1] = new Vector(numLeafTuft,(mm/dauDivSst))
+	}
+	
+	// Plot.
+	objref lSstGr,saSstGr
+	lSstGr = new Graph()
+	for mm=1,dauDivSst {
+		sstParCutL[mm-1].mark(lSstGr,xAxisParSst[mm-1],"O",6,2) // parent branches, divided in 3, normed by L
+		sstLeafCutL[mm-1].mark(lSstGr,xAxisLeafSst[mm-1],"O",6,3) // leaf branches, divided in 3, normed by L
+	}
+	lSstGr.label(0,0,"Length-normed synapses (syn/um); red = parent, blue = leaf")
+	lSstGr.exec_menu("View = plot")
+	
+	saSstGr = new Graph()
+	for mm=1,dauDivSst {
+		sstParCutSa[mm-1].mark(saSstGr,xAxisParSst[mm-1],"O",6,2) // parent branches, divided in 3, normed by SA
+		sstLeafCutSa[mm-1].mark(saSstGr,xAxisLeafSst[mm-1],"O",6,3) // leaf branches, divided in 3, normed by SA
+	}
+	saSstGr.label(0,0,"SA-normed synapses (syn/um2); red = parent, blue = leaf")
+	saSstGr.exec_menu("View = plot")
+	
+	// Generate statistics and plot.
+	objref xAxisSst
+	xAxisSst = new Vector(dauDivSst)
+	for mm=1,dauDivSst { xAxisSst.x[mm-1] = (mm/dauDivSst) }
+	
+	objref sstParCutLMu,sstLeafCutLMu,sstParCutLErr,sstLeafCutLErr
+	objref sstParCutSaMu,sstLeafCutSaMu,sstParCutSaErr,sstLeafCutSaErr
+	
+	sstParCutLMu = new Vector(dauDivSst)
+	sstLeafCutLMu = new Vector(dauDivSst)
+	sstParCutLErr = new Vector(dauDivSst)
+	sstLeafCutLErr = new Vector(dauDivSst)
+	sstParCutSaMu = new Vector(dauDivSst)
+	sstLeafCutSaMu = new Vector(dauDivSst)
+	sstParCutSaErr = new Vector(dauDivSst)
+	sstLeafCutSaErr = new Vector(dauDivSst)
+	
+	for mm=1,dauDivSst {
+		sstParCutLMu.x[mm-1] = sstParCutL[mm-1].mean()
+		sstLeafCutLMu.x[mm-1] = sstLeafCutL[mm-1].mean()
+		sstParCutLErr.x[mm-1] = sstParCutL[mm-1].stdev()
+		sstLeafCutLErr.x[mm-1] = sstLeafCutL[mm-1].stdev()
+		sstParCutSaMu.x[mm-1] = sstParCutSa[mm-1].mean()
+		sstLeafCutSaMu.x[mm-1] = sstLeafCutSa[mm-1].mean()
+		sstParCutSaErr.x[mm-1] = sstParCutSa[mm-1].stdev()
+		sstLeafCutSaErr.x[mm-1] = sstLeafCutSa[mm-1].stdev()
+	}
+	
+	sstParCutLMu.plot(lSstGr,xAxisSst,2,1)
+	sstParCutLMu.ploterr(lSstGr,xAxisSst,sstParCutLErr,5,2,1)
+	sstLeafCutLMu.plot(lSstGr,xAxisSst,3,1)
+	sstLeafCutLMu.ploterr(lSstGr,xAxisSst,sstLeafCutLErr,5,3,1)
+	sstParCutSaMu.plot(saSstGr,xAxisSst,2,1)
+	sstParCutSaMu.ploterr(saSstGr,xAxisSst,sstParCutSaErr,5,2,1)
+	sstLeafCutSaMu.plot(saSstGr,xAxisSst,3,1)
+	sstLeafCutSaMu.ploterr(saSstGr,xAxisSst,sstLeafCutSaErr,5,3,1)
