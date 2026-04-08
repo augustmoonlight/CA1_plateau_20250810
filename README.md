@@ -37,3 +37,8 @@ pip install neuron matplotlib plotly numpy random pickle
    ![Voltage trace of somatic voltage recording demonstrating Ca/NMDA plateau](examplefig_soma_vtrace) 
    ![Voltage trace of dendritic voltage recording demonstrating Ca/NMDA plateau](examplefig_dend_vtrace)  
    which is the voltage trace of the soma recording and dendrite recording, respectively. They demonstrate Ca/NMDA plateau with elevated membrane potential at a 10-100 ms timescale, which emerged in the latter cycle of theta burst stimulation. The simulation result is in accordance with the experimental findings.
+
+
+
+
+Questions can be directed to Ying-Chieh Hsu (namonaki1122@gmail.com).
